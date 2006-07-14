@@ -20,22 +20,27 @@ UI syntax
     - _ARGUMENTS defines additional widget attributes 
 
 Widget identifier
+-----------------
 
 >    #id
 
 Widget style class
+------------------
 
 >    @style
 
 Widget tooltip
+--------------
 
 >    !TEXT
 
 Widget info
+-----------
 
 >    ?TEXT
 
 Event handling
+----------------
 
 >    >event=method
 
@@ -46,10 +51,21 @@ Supported events:
     - _key_
 
 Python arguments
+----------------
 
 >    name=value, name=value, name=value
 
-Container widgets
+
+Comments
+--------
+
+>   # This is a comment
+
+Comments are useful to annotate your URWIDE source code, or to enable/disable
+parts of it. Comments are simply lines starting with the `#` character.
+
+Blocks
+------
 
 >   Ple
 >   Txt I am within the above pile
@@ -62,7 +78,6 @@ or
 >   Btn [previous]
 >   Btn [next]
 >   End
-
 
 Supported Widgets
 =================
@@ -91,6 +106,7 @@ Button
 
 >   Btn [LABEL]
 
+
 Pile
 ----
 
@@ -98,5 +114,65 @@ Gridflow
 --------
 
 >   Gfl 
+
+Style syntax
+============
+
+>   [STYLE|CLASS] : FG, BG, FN
+
+    - _STYLE_ is the name of the style
+    - _CLASS_ is the name of the python class for which the style matches 
+    - _FG_ is the foreground color
+    - _BG_ is the backgrond color
+    - _FN_ is the font style
+
+Here is a table that sums up the possible values that can be used to describe
+the styles. These values are described in the URWID reference for the [Screen](
+http://excess.org/urwid/reference.html#Screen-register_palette_entry)class.
+
+== Style values
+================================================================================
+Code || Value         || Foreground || Background || Font
+--------------------------------------------------------------------------------
+WH   || white         || yes        || no         || -
+--------------------------------------------------------------------------------
+BL   || black         || no         || yes        || -
+--------------------------------------------------------------------------------
+YL   || yellow        || yes        || no         || -
+--------------------------------------------------------------------------------
+BR   || brown         || yes        || no         || -
+--------------------------------------------------------------------------------
+DG   || dark red      || no         || yes        || -
+--------------------------------------------------------------------------------
+DB   || dark blue     || yes        || yes        || -
+--------------------------------------------------------------------------------
+DG   || dark green    || yes        || yes        || -
+--------------------------------------------------------------------------------
+DM   || dark magenta  || yes        || yes        || -
+--------------------------------------------------------------------------------
+DC   || dark cyan     || yes        || yes        || -
+--------------------------------------------------------------------------------
+Dg   || dark gray     || yes        || no         || -
+--------------------------------------------------------------------------------
+LR   || light red     || yes        || no         || -
+--------------------------------------------------------------------------------
+LG   || light green   || yes        || no         || -
+--------------------------------------------------------------------------------
+LB   || light blue    || yes        || no         || -
+--------------------------------------------------------------------------------
+LM   || light magenta || yes        || no         || -
+--------------------------------------------------------------------------------
+LC   || light cyan    || yes        || no         || -
+--------------------------------------------------------------------------------
+Lg   || light gray    || yes        || yes        || -
+--------------------------------------------------------------------------------
+BO   || bold          || -          || -          || yes
+--------------------------------------------------------------------------------
+UL   || underline     || -          || -          || yes
+--------------------------------------------------------------------------------
+SO   || standout      || -          || -          || yes
+--------------------------------------------------------------------------------
+_    || default       || yes        || yes        || yes
+================================================================================
 
 # vim: ts=4 sw=4 et fenc=latin-1 syn=kiwi

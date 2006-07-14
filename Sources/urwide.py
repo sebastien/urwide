@@ -63,10 +63,12 @@ class UI:
 		self._currentLine = None
 		self._ui          = None
 		self._palette     = self.parsePalette(palette)
+		self._frame       = None
+		self._header      = None
+		self.parse(ui)
 		self._frame       = urwid.Frame(
-			urwid.ListBox(
-				self.parse(ui)
-			)
+			urwid.ListBox(self._content),
+			self._header
 		)
 		self._topwidget   = self._frame
 
@@ -143,10 +145,11 @@ class UI:
 		"""Parses the given text and initializes this user interface object."""
 		self._content = []
 		self._stack   = []
+		self._header  = None
 		self._currentLine = 0
 		for line in text.split("\n"):
 			line = line.strip()
-			self._parseLine(line)
+			if not line.startswith("#"): self._parseLine(line)
 			self._currentLine += 1
 		return self._content
 
@@ -216,31 +219,44 @@ class UI:
 			raise SyntaxError("Malformed arguments: " + repr(data))
 		return res
 
-	def _createWidget( self, widgetClass, *addargs, **kwargs ):
-		if kwargs.get("data"):
-			ui, args, kwargs = self._parseAttributes(kwargs.get("data"))
-		else:
-			ui     = kwargs.get("ui")
-			args   = kwargs.get("args") or ()
-			kwargs = kwargs.get("args") or {}
-		addargs = list(addargs)
-		if args: addargs.extend(args)
-		if not kwargs: kwargs == {}
-		res = widgetClass(*addargs, **kwargs)
+	def _createWidget( self, widgetClass, *args, **kwargs ):
+		_data = _ui = _args = _kwargs = None
+		for arg, value in kwargs.items():
+			if   arg == "data":   _data = value
+			elif arg == "ui":     _ui = value
+			elif arg == "args":   _args = value
+			elif arg == "kwargs": _kwargs = value
+			else: raise Exception("Unrecognized optional argument: " + arg)
+		if _data: _ui, _args, _kwargs = self._parseAttributes(_data)
+		args = list(args)
+		if _args: args.extend(_args)
+		kwargs = _kwargs or {}
+		res = widgetClass(*args, **kwargs)
 		return res
 
 	# WIDGET-SPECIFIC METHODS
 	# -------------------------------------------------------------------------
 
-	def _parseTxt( self, data ):
+	def _argsFind( self, data ):
 		args = data.find("args:")
 		if args == -1:
 			attr = ""
 		else:
 			attr = data[args+5:]
 			data = data[:args]
+		return attr, data
+
+	def _parseTxt( self, data ):
+		attr, data = self._argsFind(data)
 		ui, args, kwargs = self._parseAttributes(attr)
 		self._add(self._createWidget(urwid.Text,data, ui=ui, args=args, kwargs=kwargs))
+
+	def _parseHdr( self, data ):
+		if self._header != None:
+			raise UISyntaxError("Header can occur only once")
+		attr, data = self._argsFind(data)
+		ui, args, kwargs = self._parseAttributes(attr)
+		self._header = self._createWidget(urwid.Text, data, ui=ui, args=args, kwargs=kwargs)
 
 	RE_BTN = re.compile("\s*\[([^\]]+)\]")
 	def _parseBtn( self, data ):
@@ -259,27 +275,33 @@ class UI:
 		label, text = match.groups()
 		ui, args, kwargs = self._parseAttributes(data)
 		if label:
-			self._add(self._createWidget(urwid.Edit, '', text,
+			self._add(self._createWidget(urwid.Edit, label, text,
 			ui=ui, args=args, kwargs=kwargs))
 		else:
-			self._add(self._createWidget(urwid.Edit, '', text,
+			self._add(self._createWidget(urwid.Edit, label, text,
 			ui=ui, args=args, kwargs=kwargs))
 
 	def _parsePle( self, data ):
 		def end( content, ui=None, **kwargs ):
 			if not content: content = [self.EMPTY]
-			self._add(urwid.Pile(content, **kwargs))
+			self._add(self._createWidget(urwid.Pile, content, ui=ui, kwargs=kwargs))
 		ui, args, kwargs = self._parseAttributes(data)
 		self._push(end, ui=ui, args=args, kwargs=kwargs)
 
 	def _parseGFl( self, data ):
 		def end( content, ui=None, **kwargs ):
 			max_width = 0
-			for widget in self._content:
+			# Gets the maximum width for the content
+			for widget in content:
 				if hasattr(widget, "get_text"):
 					max_width = max(len(widget.get_text()), max_width)
 				if hasattr(widget, "get_label"):
 					max_width = max(len(widget.get_label()), max_width)
+			kwargs.setdefault("cell_width", max_width + 4)
+			kwargs.setdefault("h_sep", 1)
+			kwargs.setdefault("v_sep", 1)
+			kwargs.setdefault("align", "center")
+			self._add(self._createWidget(urwid.GridFlow, content, ui=ui, kwargs=kwargs))
 		ui, args, kwargs = self._parseAttributes(data)
 		self._push(end, ui=ui, args=args, kwargs=kwargs)
 
@@ -299,10 +321,12 @@ info          : WH, LG, BL
 shade         : DC, LG, BL
 """,
 """
+Hdr URWIDE - Sample application
 ::: @shade
 
 Edt  State         [Project state]  #edit_state
-Edt  Commit Type   [Commitl type]   #edit_type
+Edt  Commit Type   [Commit type]    #edit_type
+Edt  Name          [User name]
 Edt  Summary       [Summary]        #edit_summary
 ---
 Edt  [Description]  #edit_desc multiline=True
