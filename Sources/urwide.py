@@ -25,16 +25,31 @@ goodies.
 
 COLORS =  {
 	# Colors
-	"DC": "dark cyan",
-	"LC": "light cyan",
-	"DG": "dark gray",
-	"LG": "light gray",
 	"WH": "white",
+	"BL": "black",
+	"YL": "yellow",
+	"BR": "brown",
+	"LR": "light red",
+	"LG": "light green",
+	"LB": "light blue",
+	"LC": "light cyan",
+	"LM": "light magenta",
+	"Lg": "light gray",
+	"DR": "dark red",
+	"DG": "dark green",
+	"DB": "dark blue",
+	"DC": "dark cyan",
+	"DM": "dark magenta",
+	"Dg": "dark gray",
 	# Font attributes
-	"BL": "bold",
+	"BO": "bold",
 	"SO": "standout",
+	"UL": "underline",
 	"_" : "default"
 }
+RIGHT  = "right"
+LEFT   = "left"
+CENTER = "center"
 
 CLASSES = {
 	"Edt": urwid.Edit,
@@ -53,9 +68,33 @@ class UI:
 
 	BLANK = urwid.Text("")
 	EMPTY = urwid.Text("")
-	NOP   = lambda x:x
+	NOP   = lambda self:self
+
+	class Widgets(object):
+		"""A simple utility class that allows to manage widgets easily."""
+
+		def __init__( self, widgets=None ):
+			object.__init__(self)
+			if not widgets: widgets = {}
+			self.w_w_content = widgets
+
+		def __getattr__( self, name ):
+			if name.startswith("w_w_"):
+				return super(UI.Widgets, self).__getattribute__(name)
+			else:
+				return self.__dict__["w_w_content"]
+
+		def __setattr__( self, name, value):
+			if name.startswith("w_w_"):
+				return super(UI.Widgets, self).__setattr__(name, value)
+			else:
+				widgets = self.__dict__["w_w_content"]
+				if widgets.has_key(name):
+					raise SyntaxError("Widget name already used: " + name)
+				widgets[name] = value
 
 	def __init__( self, palette, ui ):
+
 		"""Creates a new user interface object from the given text
 		description."""
 		self._content     = None
@@ -65,13 +104,14 @@ class UI:
 		self._palette     = self.parsePalette(palette)
 		self._frame       = None
 		self._header      = None
+		self._widgets     = {}
+		self.widgets      = UI.Widgets(self._widgets)
 		self.parse(ui)
-		self._frame       = urwid.Frame(
-			urwid.ListBox(self._content),
+		self._frame       = self._createWidget(urwid.Frame,
+			self._createWidget(urwid.ListBox,self._content),
 			self._header
 		)
 		self._topwidget   = self._frame
-
 
 	# EVENT HANDLERS
 	# -------------------------------------------------------------------------
@@ -125,7 +165,7 @@ class UI:
 	def _add( self, widget ):
 		# Piles cannot be created with [] as content, so we fill them with the
 		# EMPTY widget, which is replaced whenever we add something
-		if self._content == [self.EMPTY]: self._content[0] == widget
+		if self._content == [self.EMPTY]: self._content[0] = widget
 		self._content.append(widget)
 
 	def _push( self, endCallback, ui=None, args=(), kwargs={} ):
@@ -162,7 +202,7 @@ class UI:
 			name, attributes = map(string.strip, line.split(":"))
 			res_line = [name]
 			for attribute in attributes.split(","):
-				attribute = attribute.strip().upper()
+				attribute = attribute.strip()
 				color     = COLORS.get(attribute)
 				if not color: raise UISyntaxError("Unsupported color: " + attribute)
 				res_line.append(color)
@@ -185,7 +225,7 @@ class UI:
 		if hasattr(self, "_parse" + name ):
 			getattr(self, "_parse" + name)(data)
 		elif name[0] == name[1] == name[2]:
-			self._parseDvd(name)
+			self._parseDvd(name + data)
 		else:
 			raise UISyntaxError("Unrecognized widget: " + name)
 
@@ -195,17 +235,46 @@ class UI:
 		args, kwargs   = self._parseArguments(data)
 		return ui_attrs, args, kwargs
 
-	RE_UI_ATTRIBUTE = re.compile("\s*([#@\?\>\:])([\w\d_\-]+)\s*")
+	RE_UI_ATTRIBUTE = re.compile("\s*([#@\?\:]|\&[\w]+\=)([\w\d_\-]+)\s*")
 	def _parseUIAttributes( self, data ):
 		"""Parses the given UI attributes from the data and returns the rest of
 		the data (which corresponds to something else thatn the UI
 		attributes."""
 		assert type(data) in (str, unicode)
+		ui = {"events":{}}
 		while True:
 			match = self.RE_UI_ATTRIBUTE.match(data)
 			if not match: break
+			ui_type, ui_value = match.groups()
+			if   ui_type    == "#": ui["id"]      = ui_value
+			elif ui_type    == "@": ui["style"]   = ui_value
+			elif ui_type    == "?": ui["info"]    = ui_value
+			elif ui_type    == "!": ui["tooltip"] = ui_value
+			elif ui_type[0] == "&": ui["events"][ui_type[1:-1]]=ui_value
 			data = data[match.end():]
-		return None, data
+		return ui, data
+
+	def hasStyle( self, name ):
+		for r in self._palette:
+			if r[0] == name: return name
+		return False
+	
+	def _styleWidget( self, widget, ui ):
+		"""Wraps the given widget so that it belongs to the given style."""
+		if not ui: return widget
+		styles = []
+		if ui.has_key("id"): styles.append("#" + ui["id"])
+		if ui.has_key("style"): styles.append(ui["style"])
+		styles.append( widget.__class__.__name__ )
+		unf_styles = filter(lambda s:self.hasStyle(s), styles)
+		foc_styles = filter(lambda s:self.hasStyle(s), map(lambda s:s+"*", styles))
+		if unf_styles:
+			if foc_styles:
+				return urwid.AttrWrap(widget, unf_styles[0], foc_styles[0])
+			else:
+				return urwid.AttrWrap(widget, unf_styles[0])
+		else:
+			return widget
 
 	def _parseArguments( self, data ):
 		"""Parses the given text data which should be a list of attributes. This
@@ -232,6 +301,8 @@ class UI:
 		if _args: args.extend(_args)
 		kwargs = _kwargs or {}
 		res = widgetClass(*args, **kwargs)
+		# And now we process the ui information
+		res = self._styleWidget(res, _ui)
 		return res
 
 	# WIDGET-SPECIFIC METHODS
@@ -256,6 +327,7 @@ class UI:
 			raise UISyntaxError("Header can occur only once")
 		attr, data = self._argsFind(data)
 		ui, args, kwargs = self._parseAttributes(attr)
+		ui.setdefault("style", "header")
 		self._header = self._createWidget(urwid.Text, data, ui=ui, args=args, kwargs=kwargs)
 
 	RE_BTN = re.compile("\s*\[([^\]]+)\]")
@@ -266,7 +338,8 @@ class UI:
 		self._add(self._createWidget(urwid.Button, match.group(1), self._onPress, data=data))
 
 	def _parseDvd( self, data ):
-		self._add(urwid.Divider(data))
+		ui, args, kwargs = self._parseAttributes(data[3:])
+		self._add(self._createWidget(urwid.Divider, data, ui=ui, args=args, kwargs=kwargs))
 
 	RE_EDT = re.compile("([^\[]*)\[([^\]]+)\]")
 	def _parseEdt( self, data ):
@@ -274,6 +347,7 @@ class UI:
 		data  = data[match.end():]
 		label, text = match.groups()
 		ui, args, kwargs = self._parseAttributes(data)
+		if label and self.hasStyle('label'): label = ('label', label)
 		if label:
 			self._add(self._createWidget(urwid.Edit, label, text,
 			ui=ui, args=args, kwargs=kwargs))
@@ -313,34 +387,47 @@ class UI:
 		end_content, end_callback, end_ui, end_args, end_kwargs = self._pop()
 		end_callback(end_content, end_ui, *end_args, **end_kwargs)
 
-ui = UI("""
-background    : DG,  _, SO
-header        : WH, LG, BL
-footer        : LG,  _, SO
-info          : WH, LG, BL
-shade         : DC, LG, BL
-""",
-"""
-Hdr URWIDE - Sample application
-::: @shade
+if __name__ == "__main__":
 
-Edt  State         [Project state]  #edit_state
-Edt  Commit Type   [Commit type]    #edit_type
-Edt  Name          [User name]
-Edt  Summary       [Summary]        #edit_summary
----
-Edt  [Description]  #edit_desc multiline=True
-===
-Txt  Changes to commit  
----
-Ple                                 #pile_commit
-End
-GFl 
-Btn [Cancel]                         #btn_cancel
-Btn [Save]                           #btn_save
-Btn [Commit]                         #btn_commit
-End
-"""
-)
+	ui = UI("""
+	Frame         : Dg,  _, SO
+	header        : WH, DC, BO
+	footer        : LG,  _, SO
+	info          : WH, Lg, BO
+	shade         : DC, Lg, BO
 
-ui.main()
+	label         : Lg,  _, SO
+
+	Edit          : BL,  _, BO
+	Edit*         : DM, Lg, BO
+	Button        : WH, DC, BO
+	Button*       : WH, DM, BO
+	Divider       : Lg,  _, SO
+
+	#edit_summary : DM,  _, SO
+
+	""",
+	"""\
+	Hdr URWIDE - Sample application
+	::: @shade
+
+	Edt  State         [Project state]  #edit_state
+	Edt  Commit Type   [Commit type]    #edit_type
+	Edt  Name          [User name]
+	Edt  Summary       [Summary]        #edit_summary
+	---
+	Edt  [Description]  #edit_desc multiline=True
+	===
+	Txt  Changes to commit  
+	---
+	Ple                                 #pile_commit
+	End
+	GFl                                  align=RIGHT
+	Btn [Cancel]                         #btn_cancel
+	Btn [Save]                           #btn_save
+	Btn [Commit]                         #btn_commit
+	End
+	"""
+	)
+
+	ui.main()

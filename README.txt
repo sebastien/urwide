@@ -42,7 +42,7 @@ Widget info
 Event handling
 ----------------
 
->    >event=method
+>    &event=method
 
 Supported events:
 
@@ -54,7 +54,6 @@ Python arguments
 ----------------
 
 >    name=value, name=value, name=value
-
 
 Comments
 --------
@@ -118,13 +117,27 @@ Gridflow
 Style syntax
 ============
 
->   [STYLE|CLASS] : FG, BG, FN
+>   [STYLE] : FG, BG, FN
 
     - _STYLE_ is the name of the style
-    - _CLASS_ is the name of the python class for which the style matches 
     - _FG_ is the foreground color
     - _BG_ is the backgrond color
     - _FN_ is the font style
+
+A style name can be:
+
+    - _URWID widget name_ (`Edit`, `Text`, etc)
+    - _style name_ (defined by `@style` in the widgets list)
+    - _widget id_, as defined by the `#id` of the UI
+
+Focus styles can be specified by appending `*` to each style name:
+
+>   Edit        : BL, _, SO
+>   Edit*       : DM, Lg, SO
+
+means that all `Edit` widgets will have black as color when unfocused, and dark
+magenta when focused.
+
 
 Here is a table that sums up the possible values that can be used to describe
 the styles. These values are described in the URWID reference for the [Screen](
