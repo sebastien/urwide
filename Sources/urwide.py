@@ -70,28 +70,27 @@ class UI:
 	EMPTY = urwid.Text("")
 	NOP   = lambda self:self
 
-	class Widgets(object):
-		"""A simple utility class that allows to manage widgets easily."""
+	class Collection(object):
+		"""Keys of the given collection are recognized as attributes."""
 
-		def __init__( self, widgets=None ):
+		def __init__( self, collection=None ):
 			object.__init__(self)
-			if not widgets: widgets = {}
-			self.w_w_content = widgets
+			if collection == None: collection = {}
+			self.w_w_content = collection
 
 		def __getattr__( self, name ):
 			if name.startswith("w_w_"):
-				return super(UI.Widgets, self).__getattribute__(name)
+				return super(UI.Collection, self).__getattribute__(name)
 			else:
-				return self.__dict__["w_w_content"]
+				return self.w_w_content[name]
 
 		def __setattr__( self, name, value):
 			if name.startswith("w_w_"):
-				return super(UI.Widgets, self).__setattr__(name, value)
+				return super(UI.Collection, self).__setattr__(name, value)
 			else:
-				widgets = self.__dict__["w_w_content"]
-				if widgets.has_key(name):
-					raise SyntaxError("Widget name already used: " + name)
-				widgets[name] = value
+				if self.w_w_content.has_key(name):
+					raise SyntaxError("Item name already used: " + name)
+				self.w_w_content[name] = value
 
 	def __init__( self, palette, ui ):
 
@@ -105,7 +104,9 @@ class UI:
 		self._frame       = None
 		self._header      = None
 		self._widgets     = {}
-		self.widgets      = UI.Widgets(self._widgets)
+		self._handlers    = {}
+		self.widgets      = UI.Collection(self._widgets)
+		self.on           = UI.Collection(self._handlers)
 		self.parse(ui)
 		self._frame       = self._createWidget(urwid.Frame,
 			self._createWidget(urwid.ListBox,self._content),
@@ -117,6 +118,10 @@ class UI:
 	# -------------------------------------------------------------------------
 
 	def _onPress( self, button ):
+		if hasattr(button, "_urwideOnPress"):
+			handler_name = getattr(button, "_urwideOnPress")
+			handler = self._handlers.get(handler_name)
+			if not handler: raise Exception("Handler not implemented: " + handler_name)
 		pass
 
 	def _onKeyPress( self, key ):
@@ -300,9 +305,20 @@ class UI:
 		args = list(args)
 		if _args: args.extend(_args)
 		kwargs = _kwargs or {}
-		res = widgetClass(*args, **kwargs)
+		widget = widgetClass(*args, **kwargs)
 		# And now we process the ui information
-		res = self._styleWidget(res, _ui)
+		if not _ui: _ui = {}
+		if _ui.has_key(id): setattr(self._widgets, _ui["id"], widget)
+		if _ui.get("events"):
+			for event, handler in _ui["events"].items():
+				if event == "press":
+					if not isinstance(widget, urwid.Button):
+						raise UISyntaxError("Press event only applicable to buttons: " + repr(widget))
+					setattr(widget, "_urwideOnPress", handler)
+				else:
+					raise UISyntaxError("Unknown event type: " + event)
+		res = self._styleWidget( widget, _ui )
+		print _ui
 		return res
 
 	# WIDGET-SPECIFIC METHODS
@@ -422,12 +438,16 @@ if __name__ == "__main__":
 	---
 	Ple                                 #pile_commit
 	End
-	GFl                                  align=RIGHT
-	Btn [Cancel]                         #btn_cancel
-	Btn [Save]                           #btn_save
-	Btn [Commit]                         #btn_commit
+	GFl                                 align=RIGHT
+	Btn [Cancel]                        #btn_cancel &press=cancel
+	Btn [Save]                          #btn_save   &press=save
+	Btn [Commit]                        #btn_commit &press=commit
 	End
 	"""
 	)
+	ui.on.save   = lambda x:x
+	ui.on.cancel = lambda x:x
+	ui.on.commit = lambda x:x
 
+	print ui._handlers
 	ui.main()
