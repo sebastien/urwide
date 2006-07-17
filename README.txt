@@ -1,13 +1,34 @@
 == URWIDE
--- Making URWIDE even easier
+-- An easy to use extension to URWID
 -- Author: Sébastien Pierre <sebastien@xprima.com>
--- Date: 14-Jul-2005
+-- Date: 17-Jul-2005
 
 Introduction
 ============
 
-UI syntax
-=========
+[URWID] is a very powerful library that allows to write command-line interfaces
+in the [Python] language.
+
+While URWID is very powerful, it is quite low-level compared to existing UI
+toolkits, which can make development of more advanced user interface difficult.
+The main idea behing URWIDE is to extend URWID with a set of functions that
+allow to write an URWID application with less code, and that helps you in
+common tasks involved in writing a UI.
+
+UI generation
+=============
+
+URWIDE allows to describe a user interface using a very simple line-oriented
+language. You can define a complete UI in just a few lines. This description
+allows you to:
+
+    - Identify your widgets with a unique name
+    - Associate detailed information and tooltip
+    - Bind style information to your widgets
+    - Bind event handlers
+
+The description syntax is very simple, and simply consists of a set of lines of
+the following form:
 
 >    CLS DATA? [ID|STYLE|INFO|EVENT]* [ARGUMENTS]
 
@@ -144,6 +165,21 @@ provided that you register your handler into the ui:
 
 >   ui.handler(MyHandler())
 
+Collections
+===========
+
+URWIDE will create an instance of the `urwide.UI` class when given a style (will
+be presented later) and a UI description. This instance will take care of
+everything for you, from events to widgets. You will generally only want to
+access or modify the `widgets` and `strings` collections.
+
+Both collections can be edited by accessing values as attribute. Setting an
+attribute will add a key within the collection, accessing it will return the
+bound value, or raise an exception if the value was not found.
+
+>   ui.strings.SOME_TEXT = "This text can be used as a value in a widget"
+
+
 Style syntax
 ============
 
@@ -175,47 +211,47 @@ http://excess.org/urwid/reference.html#Screen-register_palette_entry)class.
 
 == Style values
 ================================================================================
-Code || Value         || Foreground || Background || Font
+*CODE* || *VALUE*       ||*FOREGROUND*||*BACKGROUND*|| *FONT*
+================================================================================
+WH     || white         || yes        || no         || -
 --------------------------------------------------------------------------------
-WH   || white         || yes        || no         || -
+BL     || black         || no         || yes        || -
 --------------------------------------------------------------------------------
-BL   || black         || no         || yes        || -
+YL     || yellow        || yes        || no         || -
 --------------------------------------------------------------------------------
-YL   || yellow        || yes        || no         || -
+BR     || brown         || yes        || no         || -
 --------------------------------------------------------------------------------
-BR   || brown         || yes        || no         || -
+DG     || dark red      || no         || yes        || -
 --------------------------------------------------------------------------------
-DG   || dark red      || no         || yes        || -
+DB     || dark blue     || yes        || yes        || -
 --------------------------------------------------------------------------------
-DB   || dark blue     || yes        || yes        || -
+DG     || dark green    || yes        || yes        || -
 --------------------------------------------------------------------------------
-DG   || dark green    || yes        || yes        || -
+DM     || dark magenta  || yes        || yes        || -
 --------------------------------------------------------------------------------
-DM   || dark magenta  || yes        || yes        || -
+DC     || dark cyan     || yes        || yes        || -
 --------------------------------------------------------------------------------
-DC   || dark cyan     || yes        || yes        || -
+Dg     || dark gray     || yes        || no         || -
 --------------------------------------------------------------------------------
-Dg   || dark gray     || yes        || no         || -
+LR     || light red     || yes        || no         || -
 --------------------------------------------------------------------------------
-LR   || light red     || yes        || no         || -
+LG     || light green   || yes        || no         || -
 --------------------------------------------------------------------------------
-LG   || light green   || yes        || no         || -
+LB     || light blue    || yes        || no         || -
 --------------------------------------------------------------------------------
-LB   || light blue    || yes        || no         || -
+LM     || light magenta || yes        || no         || -
 --------------------------------------------------------------------------------
-LM   || light magenta || yes        || no         || -
+LC     || light cyan    || yes        || no         || -
 --------------------------------------------------------------------------------
-LC   || light cyan    || yes        || no         || -
+Lg     || light gray    || yes        || yes        || -
 --------------------------------------------------------------------------------
-Lg   || light gray    || yes        || yes        || -
+BO     || bold          || -          || -          || yes
 --------------------------------------------------------------------------------
-BO   || bold          || -          || -          || yes
+UL     || underline     || -          || -          || yes
 --------------------------------------------------------------------------------
-UL   || underline     || -          || -          || yes
+SO     || standout      || -          || -          || yes
 --------------------------------------------------------------------------------
-SO   || standout      || -          || -          || yes
---------------------------------------------------------------------------------
-_    || default       || yes        || yes        || yes
+_      || default       || yes        || yes        || yes
 ================================================================================
 
 

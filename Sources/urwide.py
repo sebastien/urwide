@@ -59,6 +59,11 @@ CLASSES = {
 	"GFl": urwid.GridFlow,
 }
 
+# ------------------------------------------------------------------------------
+#
+# UI CLASS
+#
+# ------------------------------------------------------------------------------
 
 class UISyntaxError(Exception): pass
 class UIRuntimeError(Exception): pass
@@ -108,11 +113,13 @@ class UI:
 		self._header      = None
 		self._widgets     = {}
 		self._strings     = {}
+		self._data        = {}
 		self._handlers    = []
 		self._tooltiptext = ""
 		self._infotext    = ""
 		self.widgets      = UI.Collection(self._widgets)
 		self.strings      = UI.Collection(self._strings)
+		self.data         = UI.Collection(self._data)
 		self.parse(ui)
 		self._listbox     = self._createWidget(urwid.ListBox,self._content)
 		self._frame       = self._createWidget(urwid.Frame,
@@ -121,7 +128,7 @@ class UI:
 		)
 		self._topwidget   = self._frame
 
-	# STATE INFO
+	# USER INTERACTION API
 	# -------------------------------------------------------------------------
 
 	def tooltip( self, text=-1 ):
@@ -138,6 +145,44 @@ class UI:
 		else:
 			self._infotext = str(text)
 
+	# WIDGET INFORMATION
+	# -------------------------------------------------------------------------
+
+	def getFocused( self ):
+		"""Gets the focused widget"""
+		focused     = self._listbox.get_focus()[0]
+		old_focused = None
+		while focused != old_focused:
+			old_focused = focused
+			if isinstance(focused, urwid.AttrWrap):
+				focused = focused.w or focused
+			if hasattr(focused, "get_focus"):
+				focused = focused.get_focus() or focused
+		return focused
+
+	def id( self, widget ):
+		"""Returns the id for the given widget."""
+		if hasattr(widget, "_urwideId"):
+			return getattr(widget, "_urwideId")
+		else:
+			return None
+
+	def new( self, widgetClass, *args ):
+		"""Creates a new widget of the given urwid class, and returns it..
+		"""
+		return self._createWidget( widgetClass, *args )
+
+	def wrap( self, widget, properties ):
+		"""Wraps the given in the given properties."""
+		_ui, _, _ = self._parseAttributes(properties)
+		return self._wrapWidget( widget, _ui )
+
+	def unwrap( self, widget ):
+		"""Unwraps the widget (see `new` method)."""
+		if isinstance(widget, urwid.AttrWrap):
+			widget = widget.w or widget
+		return widget
+
 	# EVENT HANDLERS
 	# -------------------------------------------------------------------------
 
@@ -147,6 +192,7 @@ class UI:
 			if not  self._handlers: raise UIRuntimeError("No handler defined")
 			return self._handlers[-1]
 		else:
+			handler.ui = self
 			if not self._handlers:
 				self._handlers.append(handler)
 			else:
@@ -170,7 +216,7 @@ class UI:
 	def _handle( self, event_name, *args, **kwargs ):
 		"""Handle the given given event name."""
 		handler = self.handler()
-		handler.respond(event_name, *args, **kwargs)
+		return handler.respond(event_name, *args, **kwargs)
 
 	def _onPress( self, button ):
 		if hasattr(button, "_urwideOnPress"):
@@ -197,34 +243,13 @@ class UI:
 		if widget:
 			if hasattr(widget, "_urwideOnKey"):
 				event_name = getattr(widget,  "_urwideOnKey")
-				self._handle(event_name, self._currentSize, key)
+				res = self._handle(event_name, widget, key)
+				if res == False:
+					self._topwidget.keypress(self._currentSize, key)
 			else:
 				self._topwidget.keypress(self._currentSize, key)
 		else:
 			self._topwidget.keypress(self._currentSize, key)
-
-	# UI STATE MANAGEMENT
-	# -------------------------------------------------------------------------
-
-	def getFocused( self ):
-		"""Gets the focused widget"""
-		focused     = self._listbox.get_focus()[0]
-		old_focused = None
-		while focused != old_focused:
-			old_focused = focused
-			if isinstance(focused, urwid.AttrWrap):
-				focused = focused.w or focused
-			if hasattr(focused, "get_focus"):
-				focused = focused.get_focus() or focused
-		return focused
-	
-	def getString( self, name ):
-		"""Returns the string in the `strings` collection that has the given
-		name, or fire a runtime error."""
-		if not self._strings.has_key(name):
-			raise UIRuntimeError("Undefined string: " + name)
-		else:
-			return self._strings[name]
 
 	# URWID EVENT-LOOP
 	# -------------------------------------------------------------------------
@@ -245,22 +270,18 @@ class UI:
 		# We get the focused element, and update the info and and tooltip
 		focused = self.getFocused() or self._topwidget
 		# We update the tooltip and info in the footer
-		self.tooltip("")
-		self.info("")
-		if hasattr(focused, "urwideInfo"): self.info(self.getString(focused.urwideInfo))
-		if hasattr(focused, "urwideTooltip"): self.tooltip(self.getString(focused.urwideTooltip))
-		footer = []
-		if self.tooltip(): footer.append(urwid.AttrWrap(urwid.Text(self.tooltip()), 'tooltip'))
-		if self.info(): footer.append(urwid.AttrWrap(urwid.Text(self.info()), 'info'))
-		if footer: self._frame.footer = urwid.Pile(footer)
-		else: self._frame.footer = None
+		if hasattr(focused, "_urwideInfo"): self.info(getattr(self.strings, focused._urwideInfo))
+		if hasattr(focused, "_urwideTooltip"): self.tooltip(getattr(self.strings, focused._urwideTooltip))
 		# We trigger the on focus event
 		self._onFocus(focused, ensure=False)
 		# We draw the screen
+		self._updateFooter()
 		self.draw()
+		self.tooltip("")
+		self.info("")
 		# And process keys
 		keys    = self._ui.get_input()
-		if isinstance(focused, urwid.Edit): old_text = focused.get_text()
+		if isinstance(focused, urwid.Edit): old_text = focused.get_edit_text()
 		# We handle keys
 		for key in keys:
 			if key == "window resize":
@@ -269,11 +290,19 @@ class UI:
 				self._onKeyPress(focused, key)
 		# We check if there was a change in the edit, and we fire and event
 		if isinstance(focused, urwid.Edit):
-			self._onEdit( focused, old_text, focused.get_text(), ensure=False)
+			self._onEdit( focused, old_text, focused.get_edit_text(), ensure=False)
 	
 	def draw( self ):
 		canvas = self._topwidget.render( self._currentSize, focus=True )
 		self._ui.draw_screen( self._currentSize, canvas )
+
+	def _updateFooter(self):
+		"""Updates the frame footer according to info and tooltip"""
+		footer = []
+		if self.tooltip(): footer.append(urwid.AttrWrap(urwid.Text(self.tooltip()), 'tooltip'))
+		if self.info(): footer.append(urwid.AttrWrap(urwid.Text(self.info()), 'info'))
+		if footer: self._frame.footer = urwid.Pile(footer)
+		else: self._frame.footer = None
 
 	# PARSING WIDGETS STACK MANAGEMENT
 	# -------------------------------------------------------------------------
@@ -418,9 +447,16 @@ class UI:
 		if _args: args.extend(_args)
 		kwargs = _kwargs or {}
 		widget = widgetClass(*args, **kwargs)
+		return self._wrapWidget(widget, _ui)
+
+	def _wrapWidget( self, widget, _ui ):
+		"""Wraps the given widget into anotger widget, and applies the various
+		properties listed in the _ui (internal structure)."""
 		# And now we process the ui information
 		if not _ui: _ui = {}
-		if _ui.has_key(id): setattr(self._widgets, _ui["id"], widget)
+		if _ui.has_key("id"):
+			setattr(self.widgets, _ui["id"], widget)
+			setattr(widget, "_urwideId", _ui["id"])
 		if _ui.get("events"):
 			for event, handler in _ui["events"].items():
 				if   event == "press":
@@ -438,11 +474,10 @@ class UI:
 				else:
 					raise UISyntaxError("Unknown event type: " + event)
 		if _ui.get("info"):
-			setattr(widget, "urwideInfo", _ui["info"])
+			setattr(widget, "_urwideInfo", _ui["info"])
 		if _ui.get("tooltip"):
-			setattr(widget, "urwideTooltip", _ui["tooltip"])
+			setattr(widget, "_urwideTooltip", _ui["tooltip"])
 		res = self._styleWidget( widget, _ui )
-		print _ui
 		return res
 
 	# WIDGET-SPECIFIC METHODS
@@ -527,6 +562,12 @@ class UI:
 		end_content, end_callback, end_ui, end_args, end_kwargs = self._pop()
 		end_callback(end_content, end_ui, *end_args, **end_kwargs)
 
+# ------------------------------------------------------------------------------
+#
+# HANDLER CLASS
+#
+# ------------------------------------------------------------------------------
+
 class Handler:
 	"""A handler can be subclassed an can be plugged into a UI to react to a
 	specific set of events. The interest of handlers is that they can be
@@ -536,7 +577,7 @@ class Handler:
 	have another handler when a dialog box is displayed."""
 
 	def __init__( self ):
-		pass
+		self.ui = None
 
 	def respond( self, event, *args, **kwargs ):
 		"""Responds to the given event name. An exception must be raised if the
@@ -554,69 +595,5 @@ class Handler:
 			return res
 		else:
 			raise UIRuntimeError("Event not implemented: " + event)
-
-class MyHandler(Handler):
-
-	def onSave( self, button ):
-		pass
-
-	def onCancel( self, button ):
-		pass
-
-	def onCommit( self, button ):
-		pass
-	
-	def onChangeDescription( self, widget, oldtext, newtext ):
-		pass
-
-if __name__ == "__main__":
-
-	ui = UI("""
-	Frame         : Dg,  _, SO
-	header        : WH, DC, BO
-	footer        : LG,  _, SO
-	tooltip       : LG,  _, SO
-	info          : WH, Lg, BO
-	shade         : DC, Lg, BO
-
-	label         : Lg,  _, SO
-
-	Edit          : BL,  _, BO
-	Edit*         : DM, Lg, BO
-	Button        : WH, DC, BO
-	Button*       : WH, DM, BO
-	Divider       : Lg,  _, SO
-
-	#edit_summary : DM,  _, SO
-
-	""",
-	"""\
-	Hdr URWIDE - Sample application
-	::: @shade
-
-	Edt  State         [Project state]  #edit_state ?STATE
-	Edt  Commit Type   [Commit type]    #edit_type  ?COMMIT
-	Edt  Name          [User name]                  ?NAME
-	Edt  Summary       [Summary]        #edit_summary ?SUMMARY
-	---
-	Edt  [Description]                  #edit_desc &edit=changeDescription multiline=True
-	===
-	Txt  Changes to commit  
-	---
-	Ple                                 #pile_commit
-	End
-	GFl                                 align=RIGHT
-	Btn [Cancel]                        #btn_cancel &press=cancel
-	Btn [Save]                          #btn_save   &press=save
-	Btn [Commit]                        #btn_commit &press=commit
-	End
-	"""
-	)
-	ui.strings.STATE  = "Project state"
-	ui.strings.COMMIT = "Commit information"
-	ui.strings.NAME   = "Your user name"
-	ui.strings.SUMMARY   = "Summary"
-	ui.handler(MyHandler())
-	ui.main()
 
 # EOF
