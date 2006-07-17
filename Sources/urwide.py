@@ -8,7 +8,7 @@
 # License   : Lesser GNU Public License  http://www.gnu.org/licenses/lgpl.html>
 # -----------------------------------------------------------------------------
 # Creation  : 14-Jul-2006
-# Last mod  : 14-Jul-2006
+# Last mod  : 15-Jul-2006
 # -----------------------------------------------------------------------------
 
 import string, re
@@ -107,8 +107,12 @@ class UI:
 		self._frame       = None
 		self._header      = None
 		self._widgets     = {}
+		self._strings     = {}
 		self._handlers    = []
+		self._tooltiptext = ""
+		self._infotext    = ""
 		self.widgets      = UI.Collection(self._widgets)
+		self.strings      = UI.Collection(self._strings)
 		self.parse(ui)
 		self._listbox     = self._createWidget(urwid.ListBox,self._content)
 		self._frame       = self._createWidget(urwid.Frame,
@@ -116,6 +120,23 @@ class UI:
 			self._header
 		)
 		self._topwidget   = self._frame
+
+	# STATE INFO
+	# -------------------------------------------------------------------------
+
+	def tooltip( self, text=-1 ):
+		"""Sets/Gets the current tooltip text."""
+		if text == -1:
+			return self._tooltiptext
+		else:
+			self._tooltiptext = str(text)
+
+	def info( self, text=-1 ):
+		"""Sets/Gets the current info text."""
+		if text == -1:
+			return self._infotext
+		else:
+			self._infotext = str(text)
 
 	# EVENT HANDLERS
 	# -------------------------------------------------------------------------
@@ -196,6 +217,14 @@ class UI:
 			if hasattr(focused, "get_focus"):
 				focused = focused.get_focus() or focused
 		return focused
+	
+	def getString( self, name ):
+		"""Returns the string in the `strings` collection that has the given
+		name, or fire a runtime error."""
+		if not self._strings.has_key(name):
+			raise UIRuntimeError("Undefined string: " + name)
+		else:
+			return self._strings[name]
 
 	# URWID EVENT-LOOP
 	# -------------------------------------------------------------------------
@@ -213,11 +242,24 @@ class UI:
 	def loop( self ):
 		"""This is the main URWID loop, where the event processing and
 		dispatching is done."""
-		self.draw()
-		keys    = self._ui.get_input()
-		# We get the focused element
+		# We get the focused element, and update the info and and tooltip
 		focused = self.getFocused() or self._topwidget
+		# We update the tooltip and info in the footer
+		self.tooltip("")
+		self.info("")
+		if hasattr(focused, "urwideInfo"): self.info(self.getString(focused.urwideInfo))
+		if hasattr(focused, "urwideTooltip"): self.tooltip(self.getString(focused.urwideTooltip))
+		footer = []
+		if self.tooltip(): footer.append(urwid.AttrWrap(urwid.Text(self.tooltip()), 'tooltip'))
+		if self.info(): footer.append(urwid.AttrWrap(urwid.Text(self.info()), 'info'))
+		if footer: self._frame.footer = urwid.Pile(footer)
+		else: self._frame.footer = None
+		# We trigger the on focus event
 		self._onFocus(focused, ensure=False)
+		# We draw the screen
+		self.draw()
+		# And process keys
+		keys    = self._ui.get_input()
 		if isinstance(focused, urwid.Edit): old_text = focused.get_text()
 		# We handle keys
 		for key in keys:
@@ -320,6 +362,7 @@ class UI:
 			match = self.RE_UI_ATTRIBUTE.match(data)
 			if not match: break
 			ui_type, ui_value = match.groups()
+			assert type(ui_value) == str
 			if   ui_type    == "#": ui["id"]      = ui_value
 			elif ui_type    == "@": ui["style"]   = ui_value
 			elif ui_type    == "?": ui["info"]    = ui_value
@@ -394,6 +437,10 @@ class UI:
 					setattr(widget, "_urwideOnKey", handler)
 				else:
 					raise UISyntaxError("Unknown event type: " + event)
+		if _ui.get("info"):
+			setattr(widget, "urwideInfo", _ui["info"])
+		if _ui.get("tooltip"):
+			setattr(widget, "urwideTooltip", _ui["tooltip"])
 		res = self._styleWidget( widget, _ui )
 		print _ui
 		return res
@@ -528,6 +575,7 @@ if __name__ == "__main__":
 	Frame         : Dg,  _, SO
 	header        : WH, DC, BO
 	footer        : LG,  _, SO
+	tooltip       : LG,  _, SO
 	info          : WH, Lg, BO
 	shade         : DC, Lg, BO
 
@@ -546,10 +594,10 @@ if __name__ == "__main__":
 	Hdr URWIDE - Sample application
 	::: @shade
 
-	Edt  State         [Project state]  #edit_state
-	Edt  Commit Type   [Commit type]    #edit_type
-	Edt  Name          [User name]
-	Edt  Summary       [Summary]        #edit_summary
+	Edt  State         [Project state]  #edit_state ?STATE
+	Edt  Commit Type   [Commit type]    #edit_type  ?COMMIT
+	Edt  Name          [User name]                  ?NAME
+	Edt  Summary       [Summary]        #edit_summary ?SUMMARY
 	---
 	Edt  [Description]                  #edit_desc &edit=changeDescription multiline=True
 	===
@@ -564,5 +612,11 @@ if __name__ == "__main__":
 	End
 	"""
 	)
+	ui.strings.STATE  = "Project state"
+	ui.strings.COMMIT = "Commit information"
+	ui.strings.NAME   = "Your user name"
+	ui.strings.SUMMARY   = "Summary"
 	ui.handler(MyHandler())
 	ui.main()
+
+# EOF
