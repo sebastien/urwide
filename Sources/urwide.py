@@ -21,6 +21,8 @@ enables the creation of complexe console user-interfaces, using a simple syntax.
 
 URWIDE provides extensions to support events, tooltips, dialogs as well as other
 goodies.
+
+URWID can be downloaded at <http://www.excess.org/urwid>.
 """
 
 COLORS =  {
@@ -57,7 +59,9 @@ CLASSES = {
 	"GFl": urwid.GridFlow,
 }
 
+
 class UISyntaxError(Exception): pass
+class UIRuntimeError(Exception): pass
 class UI:
 	"""The UI class allows to build an URWID user-interface from a simple set of
 	string definitions.
@@ -93,7 +97,6 @@ class UI:
 				self.w_w_content[name] = value
 
 	def __init__( self, palette, ui ):
-
 		"""Creates a new user interface object from the given text
 		description."""
 		self._content     = None
@@ -104,12 +107,12 @@ class UI:
 		self._frame       = None
 		self._header      = None
 		self._widgets     = {}
-		self._handlers    = {}
+		self._handlers    = []
 		self.widgets      = UI.Collection(self._widgets)
-		self.on           = UI.Collection(self._handlers)
 		self.parse(ui)
+		self._listbox     = self._createWidget(urwid.ListBox,self._content)
 		self._frame       = self._createWidget(urwid.Frame,
-			self._createWidget(urwid.ListBox,self._content),
+			self._listbox,
 			self._header
 		)
 		self._topwidget   = self._frame
@@ -117,17 +120,65 @@ class UI:
 	# EVENT HANDLERS
 	# -------------------------------------------------------------------------
 
+	def handler( self, handler = None ):
+		"""Sets/Gets the current event handler"""
+		if handler == None:
+			if not  self._handlers: raise UIRuntimeError("No handler defined")
+			return self._handlers[-1]
+		else:
+			if not self._handlers:
+				self._handlers.append(handler)
+			else:
+				self._handlers[-1] = handler
+
+	def responder( self, event ):
+		"""Returns the function that responds to the given event."""
+		return self.handler().responder(event)
+
+	def pushHandler( self, handler ):
+		"""Push a new handler on the list of handlers. This handler will handle
+		events until it is popped out or replaced."""
+		self._handlers.append(handler)
+	
+	def popHandler( self ):
+		"""Pops the current handler of the list of handlers. The handler will
+		not handle events anymore, while the previous handler will start to
+		handle events."""
+		return self._handlers.pop()
+
+	def _handle( self, event_name, *args, **kwargs ):
+		"""Handle the given given event name."""
+		handler = self.handler()
+		handler.respond(event_name, *args, **kwargs)
+
 	def _onPress( self, button ):
 		if hasattr(button, "_urwideOnPress"):
-			handler_name = getattr(button, "_urwideOnPress")
-			handler = self._handlers.get(handler_name)
-			if not handler: raise Exception("Handler not implemented: " + handler_name)
-		pass
+			event_name = getattr(button, "_urwideOnPress")
+			self._handle(event_name, button)
+		else:
+			raise UIRuntimeError("Widget does not respond to press event: %s" % (button))
 
-	def _onKeyPress( self, key ):
-		focused_widget = self.getFocused()
-		if focused_widget:
-			pass
+	def _onFocus( self, widget, ensure=True ):
+		if hasattr(widget, "_urwideOnFocus"):
+			event_name = getattr(widget, "_urwideOnFocus")
+			self._handle(event_name, widget)
+		elif ensure:
+			raise UIRuntimeError("Widget does not respond to focus event: %s" % (widget))
+
+	def _onEdit( self, widget, before, after, ensure=True ):
+		if hasattr(widget, "_urwideOnEdit"):
+			event_name = getattr(widget, "_urwideOnEdit")
+			self._handle(event_name, widget, before, after)
+		elif ensure:
+			raise UIRuntimeError("Widget does not respond to focus edit: %s" % (widget))
+
+	def _onKeyPress( self, widget, key ):
+		if widget:
+			if hasattr(widget, "_urwideOnKey"):
+				event_name = getattr(widget,  "_urwideOnKey")
+				self._handle(event_name, self._currentSize, key)
+			else:
+				self._topwidget.keypress(self._currentSize, key)
 		else:
 			self._topwidget.keypress(self._currentSize, key)
 
@@ -135,7 +186,16 @@ class UI:
 	# -------------------------------------------------------------------------
 
 	def getFocused( self ):
-		return None
+		"""Gets the focused widget"""
+		focused     = self._listbox.get_focus()[0]
+		old_focused = None
+		while focused != old_focused:
+			old_focused = focused
+			if isinstance(focused, urwid.AttrWrap):
+				focused = focused.w or focused
+			if hasattr(focused, "get_focus"):
+				focused = focused.get_focus() or focused
+		return focused
 
 	# URWID EVENT-LOOP
 	# -------------------------------------------------------------------------
@@ -151,14 +211,23 @@ class UI:
 			self.loop()
 
 	def loop( self ):
+		"""This is the main URWID loop, where the event processing and
+		dispatching is done."""
 		self.draw()
-		keys = self._ui.get_input()
+		keys    = self._ui.get_input()
+		# We get the focused element
+		focused = self.getFocused() or self._topwidget
+		self._onFocus(focused, ensure=False)
+		if isinstance(focused, urwid.Edit): old_text = focused.get_text()
 		# We handle keys
 		for key in keys:
 			if key == "window resize":
 				self._currentSize = self._ui.get_cols_rows()
 			else:
-				self._onKeyPress(key)
+				self._onKeyPress(focused, key)
+		# We check if there was a change in the edit, and we fire and event
+		if isinstance(focused, urwid.Edit):
+			self._onEdit( focused, old_text, focused.get_text(), ensure=False)
 	
 	def draw( self ):
 		canvas = self._topwidget.render( self._currentSize, focus=True )
@@ -311,10 +380,18 @@ class UI:
 		if _ui.has_key(id): setattr(self._widgets, _ui["id"], widget)
 		if _ui.get("events"):
 			for event, handler in _ui["events"].items():
-				if event == "press":
+				if   event == "press":
 					if not isinstance(widget, urwid.Button):
-						raise UISyntaxError("Press event only applicable to buttons: " + repr(widget))
+						raise UISyntaxError("Press event only applicable to Button: " + repr(widget))
 					setattr(widget, "_urwideOnPress", handler)
+				elif event == "edit":
+					if not isinstance(widget, urwid.Edit):
+						raise UISyntaxError("Edit event only applicable to Edit: " + repr(widget))
+					setattr(widget, "_urwideOnEdit", handler)
+				elif event == "focus":
+					setattr(widget, "_urwideOnFocus", handler)
+				elif event == "key":
+					setattr(widget, "_urwideOnKey", handler)
 				else:
 					raise UISyntaxError("Unknown event type: " + event)
 		res = self._styleWidget( widget, _ui )
@@ -403,6 +480,48 @@ class UI:
 		end_content, end_callback, end_ui, end_args, end_kwargs = self._pop()
 		end_callback(end_content, end_ui, *end_args, **end_kwargs)
 
+class Handler:
+	"""A handler can be subclassed an can be plugged into a UI to react to a
+	specific set of events. The interest of handlers is that they can be
+	dynamically switched, then making "modal UI" implementation easier.
+
+	For instance, you could have a handler for your UI in "normal mode", and
+	have another handler when a dialog box is displayed."""
+
+	def __init__( self ):
+		pass
+
+	def respond( self, event, *args, **kwargs ):
+		"""Responds to the given event name. An exception must be raised if the
+		event cannot be responded to. False is returned if the handler does not
+		want to handle the event, True if the event was handled."""
+		responder = self.responder(event)
+		return responder(*args, **kwargs) != False
+
+	def responder( self, event ):
+		"""Returns the function that responds to the given event."""
+		_event_name = "on" + event[0].upper() + event[1:]
+		if hasattr(self, _event_name):
+			res = getattr(self, _event_name)
+			assert res
+			return res
+		else:
+			raise UIRuntimeError("Event not implemented: " + event)
+
+class MyHandler(Handler):
+
+	def onSave( self, button ):
+		pass
+
+	def onCancel( self, button ):
+		pass
+
+	def onCommit( self, button ):
+		pass
+	
+	def onChangeDescription( self, widget, oldtext, newtext ):
+		pass
+
 if __name__ == "__main__":
 
 	ui = UI("""
@@ -432,7 +551,7 @@ if __name__ == "__main__":
 	Edt  Name          [User name]
 	Edt  Summary       [Summary]        #edit_summary
 	---
-	Edt  [Description]  #edit_desc multiline=True
+	Edt  [Description]                  #edit_desc &edit=changeDescription multiline=True
 	===
 	Txt  Changes to commit  
 	---
@@ -445,9 +564,5 @@ if __name__ == "__main__":
 	End
 	"""
 	)
-	ui.on.save   = lambda x:x
-	ui.on.cancel = lambda x:x
-	ui.on.commit = lambda x:x
-
-	print ui._handlers
+	ui.handler(MyHandler())
 	ui.main()

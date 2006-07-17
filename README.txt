@@ -114,6 +114,36 @@ Gridflow
 
 >   Gfl 
 
+Events
+======
+
+URWIDE provides support for handling events and binding event handlers to each
+individual widget. The events currently supported are:
+
+ - `focus` (any), which is triggered when the widget received focus
+ - `key` (any), which is triggered when a key is pressed on a widget
+ - `edit` (Edit), which is triggered after an Edit was edited
+ - `press` (Buttons, CheckBox), which is triggered when a button is pressed
+
+Events are handled by _handlers_, which are objects that define methods that
+implement a particular reaction. For instance, if you have an event named
+`showHelp`, you handler class will be like that:
+
+>   class MyHandler(urwide.Handler):
+>
+>       def onShowHelp( self, widget ):
+>           # Do something here
+
+And then, if you want to trigger the "`showHelp`" event when a button is
+pressed:
+
+>   Btn [Show help] &press=showHelp
+
+This will automatically make the binding between the ui and the handler,
+provided that you register your handler into the ui:
+
+>   ui.handler(MyHandler())
+
 Style syntax
 ============
 
@@ -187,5 +217,6 @@ SO   || standout      || -          || -          || yes
 --------------------------------------------------------------------------------
 _    || default       || yes        || yes        || yes
 ================================================================================
+
 
 # vim: ts=4 sw=4 et fenc=latin-1 syn=kiwi
