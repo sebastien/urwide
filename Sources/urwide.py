@@ -91,7 +91,9 @@ class UI:
 			if name.startswith("w_w_"):
 				return super(UI.Collection, self).__getattribute__(name)
 			else:
-				return self.w_w_content[name]
+				w = self.w_w_content
+				if not w.has_key(name): raise UIRuntimeError("No widget with name: " + name)
+				return w[name]
 
 		def __setattr__( self, name, value):
 			if name.startswith("w_w_"):
@@ -101,16 +103,19 @@ class UI:
 					raise SyntaxError("Item name already used: " + name)
 				self.w_w_content[name] = value
 
-	def __init__( self, palette, ui ):
+	def __init__( self ):
 		"""Creates a new user interface object from the given text
 		description."""
 		self._content     = None
 		self._stack       = None
 		self._currentLine = None
 		self._ui          = None
-		self._palette     = self.parsePalette(palette)
+		self._palette     = None
 		self._frame       = None
 		self._header      = None
+		self._listbox     = None
+		self._frame       = None
+		self._topwidget   = None
 		self._widgets     = {}
 		self._strings     = {}
 		self._data        = {}
@@ -120,13 +125,8 @@ class UI:
 		self.widgets      = UI.Collection(self._widgets)
 		self.strings      = UI.Collection(self._strings)
 		self.data         = UI.Collection(self._data)
-		self.parse(ui)
-		self._listbox     = self._createWidget(urwid.ListBox,self._content)
-		self._frame       = self._createWidget(urwid.Frame,
-			self._listbox,
-			self._header
-		)
-		self._topwidget   = self._frame
+		self.isRunning    = False
+		self.endMessage   = ""
 
 	# USER INTERACTION API
 	# -------------------------------------------------------------------------
@@ -261,8 +261,16 @@ class UI:
 
 	def run( self ):
 		self._currentSize = self._ui.get_cols_rows()
-		while True:
+		self.isRunning    = True
+		while self.isRunning:
 			self.loop()
+		# TODO: This does not work
+		if self.endMessage:
+			print self.endMessage
+
+	def end( self, msg=None ):
+		self.isRunning = False
+		self.endMessage = msg
 
 	def loop( self ):
 		"""This is the main URWID loop, where the event processing and
@@ -280,6 +288,7 @@ class UI:
 		self.tooltip("")
 		self.info("")
 		# And process keys
+		if not self.isRunning: return
 		keys    = self._ui.get_input()
 		if isinstance(focused, urwid.Edit): old_text = focused.get_edit_text()
 		# We handle keys
@@ -326,8 +335,13 @@ class UI:
 	# GENERIC PARSING METHODS
 	# -------------------------------------------------------------------------
 
-	def parse( self, text ):
+	def parse( self, style, ui ):
+		self.parseStyle(style)
+		self.parseUI(ui)
+
+	def parseUI( self, text ):
 		"""Parses the given text and initializes this user interface object."""
+		text = string.Template(text).substitute(self._strings)
 		self._content = []
 		self._stack   = []
 		self._header  = None
@@ -336,10 +350,16 @@ class UI:
 			line = line.strip()
 			if not line.startswith("#"): self._parseLine(line)
 			self._currentLine += 1
+		self._listbox     = self._createWidget(urwid.ListBox,self._content)
+		self._frame       = self._createWidget(urwid.Frame,
+			self._listbox,
+			self._header
+		)
+		self._topwidget   = self._frame
 		return self._content
 
-	@staticmethod
-	def parsePalette( data ):
+	def parseStyle( self, data ):
+		"""Parses the given style."""
 		res = []
 		for line in data.split("\n"):
 			if not line.strip(): continue
@@ -354,9 +374,10 @@ class UI:
 			if not len(res_line) == 4:
 				raise UISyntaxError("Expected NAME: FOREGROUND BACKGROUND FONT")
 			res.append(tuple(res_line))
+		self._palette = res
 		return res
 
-	RE_LINE = re.compile("^\s*(...)\s*")
+	RE_LINE = re.compile("^\s*(...)\s?")
 	def _parseLine( self, line ):
 		"""Parses a line of the UI definition file. This automatically invokes
 		the specialized parsers."""
@@ -407,7 +428,6 @@ class UI:
 	
 	def _styleWidget( self, widget, ui ):
 		"""Wraps the given widget so that it belongs to the given style."""
-		if not ui: return widget
 		styles = []
 		if ui.has_key("id"): styles.append("#" + ui["id"])
 		if ui.has_key("style"): styles.append(ui["style"])
@@ -537,6 +557,13 @@ class UI:
 		ui, args, kwargs = self._parseAttributes(data)
 		self._push(end, ui=ui, args=args, kwargs=kwargs)
 
+	def _parseCol( self, data ):
+		def end( content, ui=None, **kwargs ):
+			if not content: content = [self.EMPTY]
+			self._add(self._createWidget(urwid.Columns, content, ui=ui, kwargs=kwargs))
+		ui, args, kwargs = self._parseAttributes(data)
+		self._push(end, ui=ui, args=args, kwargs=kwargs)
+
 	def _parseGFl( self, data ):
 		def end( content, ui=None, **kwargs ):
 			max_width = 0
@@ -554,6 +581,12 @@ class UI:
 		ui, args, kwargs = self._parseAttributes(data)
 		self._push(end, ui=ui, args=args, kwargs=kwargs)
 
+	def _parseLBx( self, data ):
+		def end( content, ui=None, **kwargs ):
+			self._add(self._createWidget(urwid.ListBox, content, ui=ui, kwargs=kwargs))
+		ui, args, kwargs = self._parseAttributes(data)
+		self._push(end, ui=ui, args=args, kwargs=kwargs)
+
 	def _parseEnd( self, data ):
 		if data.strip(): raise UISyntaxError("End takes no argument: " + repr(data))
 		# We get the end callback that will instanciate the widget and add it to
@@ -568,6 +601,7 @@ class UI:
 #
 # ------------------------------------------------------------------------------
 
+FORWARD = False
 class Handler:
 	"""A handler can be subclassed an can be plugged into a UI to react to a
 	specific set of events. The interest of handlers is that they can be
@@ -584,7 +618,7 @@ class Handler:
 		event cannot be responded to. False is returned if the handler does not
 		want to handle the event, True if the event was handled."""
 		responder = self.responder(event)
-		return responder(*args, **kwargs) != False
+		return responder(*args, **kwargs) != FORWARD
 
 	def responder( self, event ):
 		"""Returns the function that responds to the given event."""

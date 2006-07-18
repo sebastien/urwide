@@ -1,7 +1,7 @@
 import urwide, os
 
 # Defines the style and user interface
-ui = urwide.UI("""
+STYLE = """
 Frame         : Dg,  _, SO
 header        : WH, DC, BO
 footer        : LG,  _, SO
@@ -18,9 +18,9 @@ Button*       : WH, DM, BO
 Divider       : Lg,  _, SO
 
 #subject      : DM,  _, SO
+"""
 
-""",
-"""\
+UI = """\
 Hdr URWIDE Mail Editor
 ::: @shade
 
@@ -40,9 +40,11 @@ End
 )
 
 # Defines strings referenced in the UI
+ui                 = urwide.UI()
 ui.strings.FROM    = "Your email address"
 ui.strings.TO      = "Comma separated list of recipient adresses"
 ui.strings.SUBJECT = "The subject for your email"
+ui.parse(STYLE, UI)
 
 # Event handler
 class Handler(urwide.Handler):
