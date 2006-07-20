@@ -185,6 +185,12 @@ class UI:
 		else:
 			return event_name(widget,  *args, **kwargs)
 
+	def setTooltip( self, widget, tooltip ):
+		widget._urwideTooltip = tooltip
+
+	def setInfo( self, widget, info ):
+		widget._urwideInfo = info
+
 	def onKey( self, widget, callback ):
 		"""Sets a callback to the given widget for the 'key' event"""
 		widget = self.unwrap(widget)
@@ -234,8 +240,12 @@ class UI:
 				res = self._handle(event_name, widget, key)
 				if res == FORWARD:
 					topwidget.keypress(self._currentSize, key)
+			elif widget != topwidget:
+				self._doKeyPress(topwidget, key)
 			else:
 				topwidget.keypress(self._currentSize, key)
+		elif widget != topwidget:
+			self._doKeyPress(topwidget, key)
 		else:
 			topwidget.keypress(self._currentSize, key)
 
@@ -631,11 +641,13 @@ class Console(UI):
 			focused = self._dialog.view()
 		else:
 			focused = self.getFocused() or self._frame
-		# We update the tooltip and info in the footer
-		if hasattr(focused, "_urwideInfo"): self.info(getattr(self.strings, focused._urwideInfo))
-		if hasattr(focused, "_urwideTooltip"): self.tooltip(getattr(self.strings, focused._urwideTooltip))
 		# We trigger the on focus event
 		self._doFocus(focused, ensure=False)
+		# We update the tooltip and info in the footer
+		if hasattr(focused, "_urwideInfo"):
+			self.info(self._strings.get(focused._urwideInfo) or focused._urwideInfo)
+		if hasattr(focused, "_urwideTooltip"):
+			self.info(self._strings.get(focused._urwideTooltip) or focused._urwideTooltip)
 		# We draw the screen
 		self._updateFooter()
 		self.draw()
@@ -713,6 +725,11 @@ class Dialog(UI):
 	"""Utility class to create dialogs that will fit within a console
 	application."""
 
+	PALETTE = """
+	dialog        : BL, Lg, SO
+	dialog.shadow : DB, BL, SO
+	dialog.border : Lg, DB, SO
+	"""
 	def __init__( self, parent, ui, width=40, height=30, style="dialog",
 	header="", palette=""):
 		UI.__init__(self)
@@ -738,11 +755,8 @@ class Dialog(UI):
 		return self._view
 
 	def make( self, uitext, palui ):
+		if not palui: palui = self.PALETTE
 		self.parseStyle(palui)
-		palette  = list(self._parent._palette)
-		if self._palette:
-			palette.extend(self._palette)
-		self._palette = palette
 		style = self._styleWidget
 		assert self._view == None
 		content = []
@@ -752,8 +766,8 @@ class Dialog(UI):
 			content.append(urwid.Divider("_"))
 		content.extend(self.parseUI(uitext))
 		w = style(urwid.ListBox(content), {'style':(self._style +'.content', "dialog.content", self._style)})
-		w = urwid.Padding(w, ('fixed left', 2), ('fixed right', 2))
-		w = urwid.Filler(w,  ('fixed top', 1),  ('fixed bottom',1))
+		w = urwid.Padding(w, ('fixed left', 1), ('fixed right', 1))
+		#w = urwid.Filler(w,  ('fixed top', 1),  ('fixed bottom',1))
 		w = style(w,  {'style':(self._style+".body", "dialog.body", self._style)} )
 		w = style( w, {'style':(self._style, "dialog")} )
 		# Shadow
@@ -783,7 +797,7 @@ class Dialog(UI):
 			raise UISyntaxError("Header can occur only once")
 		attr, data = self._argsFind(data)
 		ui, args, kwargs = self._parseAttributes(attr)
-		ui.setdefault("style", self.hasStyle("dialog.header", "header"))
+		ui.setdefault("style", ("dialog.header", "header") )
 		self._content.append( self._createWidget(urwid.Text, data, ui=ui, args=args, kwargs=kwargs))
 
 # ------------------------------------------------------------------------------
