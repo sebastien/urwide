@@ -20,9 +20,12 @@ Divider       : Lg,  _, SO
 #subject      : DM,  _, SO
 """
 
+DIALOG_STYLE = """
+header        : BL, Lg, BO
+"""
 UI = """\
 Hdr URWIDE Dialog example
-::: @shade
+___
 
 Txt Please select any of these buttons to pop-up a dialog !
 GFl
@@ -35,39 +38,48 @@ Ftr Press any button to pop up a dialog
 """
 
 ALERT = """\
-Hdr ALERT dialog
-
-___
+Hdr Alert dialog
 
 Txt This is an alert box, display the message you want here
 
 GFl
 # And do not forget to provide a buttong with an exit handler
-Btn [OK]                                        &press=end
+Btn [OK]                              #btn_end
 End
 """
 
+ASK = """\
+Hdr Ask dialog
 
+Txt Please respond to this question
+Edt [your answer]
+
+GFl
+# And do not forget to provide a buttong with an exit handler
+Btn [OK]                              #btn_end
+Btn [Cancel]                          #btn_cancel
+End
+"""
 # Defines strings referenced in the UI
-ui                 = urwide.UI()
+ui                 = urwide.Console()
 ui.parse(STYLE, UI)
 
 # Event handler
 class Handler(urwide.Handler):
 
 	def onAlert( self, button ):
-		self.ui.dialog(urwide.Dialog(ui=ALERT))
+		dialog = urwide.Dialog(self.ui, ui=ALERT,palette=DIALOG_STYLE, height=10)
+		dialog.onPress(dialog.widgets.btn_end, lambda b:dialog.end())
+		self.ui.dialog(dialog)
 
 	def onCancel( self, button ):
 		self.ui.info("Cancel")
 		self.exit()
 
-	def onSend( self, button ):
-		self.ui.info("Send")
-
-	def onChangeContent( self, widget, oldtext, newtext ):
-		if oldtext != newtext:
-			self.ui.info("Email content changed !")
+	def onAsk( self, button ):
+		dialog = urwide.Dialog(self.ui, ui=ASK,palette=DIALOG_STYLE, height=10)
+		dialog.onPress(dialog.widgets.btn_end, lambda b:dialog.end())
+		self.ui.dialog(dialog)
 
 ui.handler(Handler())
 

@@ -36,7 +36,7 @@ End
 """ % ("me")
 
 # Defines strings referenced in the UI
-ui                 = urwide.UI()
+ui                 = urwide.Console()
 ui.strings.FROM    = "Your email address"
 ui.strings.TO      = "Comma separated list of recipient adresses"
 ui.strings.SUBJECT = "The subject for your email"

@@ -8,22 +8,21 @@
 # License   : Lesser GNU Public License  http://www.gnu.org/licenses/lgpl.html>
 # -----------------------------------------------------------------------------
 # Creation  : 14-Jul-2006
-# Last mod  : 15-Jul-2006
+# Last mod  : 20-Jul-2006
 # -----------------------------------------------------------------------------
 
 import string, re
 import urwid, urwid.raw_display
 
-# TODO: Separate UI so that both Frame and Dialog can inherit from it, and that
-# parsing and event handling are clearly separated
-
 __version__ = "0.1.0"
 __doc__ = """\
-URWIDE provides a nice wrapper around the awesome urwid Python library. It
-enables the creation of complexe console user-interfaces, using a simple syntax. 
+URWIDE provides a nice wrapper around the awesome URWID Python library. It
+enables the creation of complex console user-interfaces, using an easy to use
+API .
 
-URWIDE provides extensions to support events, tooltips, dialogs as well as other
-goodies.
+URWIDE provides a simple notation to describe text-based UIs, and also provides
+extensions to support events, tooltips, dialogs as well as other goodies for
+every URWID widget.
 
 URWID can be downloaded at <http://www.excess.org/urwid>.
 """
@@ -55,83 +54,6 @@ COLORS =  {
 RIGHT  = "right"
 LEFT   = "left"
 CENTER = "center"
-
-CLASSES = {
-	"Edt": urwid.Edit,
-	"Ple": urwid.Pile,
-	"GFl": urwid.GridFlow,
-}
-
-# ------------------------------------------------------------------------------
-#
-# DIALOG CLASSES
-#
-# ------------------------------------------------------------------------------
-
-class Dialog:
-	"""Abstract class for creating dialogs."""
-
-	def __init__( self, header="", content=[], style='dialog', ui=None, width=40, height=30):
-		self._width   = width
-		self._height  = height
-		self._header  = header
-		self._content = []
-		self._style   = style
-		self._view    = None
-		self._ui      = None
-		self._uiText  = ui
-		self._startCallback = lambda x:x
-		self._endCallback   = lambda x:x
-
-	def width( self ):
-		return self._width
-
-	def height( self ):
-		return self._height
-
-	def view( self ):
-		assert self._view
-		return self._view
-
-	def bind( self, ui ):
-		style = ui._styleWidget
-		assert self._view == None
-		content = []
-		if self._header:
-			content.append(style(urwid.Text(self._header), {'style':(self._style +'.header', "dialog.header", 'header')}))
-			content.append(urwid.Text(""))
-			content.append(urwid.Divider("_"))
-		if self._uiText:
-			content.extend(ui._parseUI(self._uiText))
-		else:
-			content.extend(self._content)
-		w = style(urwid.ListBox(content), {'style':(self._style +'.content', "dialog.content", self._style)})
-		w = urwid.Padding(w, ('fixed left', 2), ('fixed right', 2))
-		w = urwid.Filler(w,  ('fixed top', 1),  ('fixed bottom',1))
-		w = style(w,  {'style':(self._style+".body", "dialog.body", self._style)} )
-		w = style( w, {'style':(self._style, "dialog")} )
-		# Shadow
-		shadow = ui.hasStyle( self._style + ".shadow", "dialog.shadow", "shadow")
-		border = ui.hasStyle( self._style + ".border", "dialog.border", "border")
-		if shadow:
-			if border: border = (border, '  ')
-			else: border = '  '
-			w = urwid.Columns([w,('fixed', 2, urwid.AttrWrap(urwid.Filler(urwid.Text(border), "top") ,shadow))])
-			w = urwid.Frame( w, footer = urwid.AttrWrap(urwid.Text(border),shadow))
-		self._view = w
-		self._ui = ui
-		self._startCallback(self)
-
-	def onStart( self, callback ):
-		self._startCallback = callback
-	
-	def onEnd( self, callback ):
-		self._endCallback = callback
-
-	def end( self ):
-		"""Call this to close the dialog."""
-		self._endCallback(self)
-		self._ui._dialog = None
 
 # ------------------------------------------------------------------------------
 #
@@ -185,76 +107,15 @@ class UI:
 		self._currentLine = None
 		self._ui          = None
 		self._palette     = None
-		self._frame       = None
 		self._header      = None
-		self._footer      = None
-		self._listbox     = None
-		self._dialog      = None
+		self._currentSize = None
 		self._widgets     = {}
 		self._strings     = {}
 		self._data        = {}
 		self._handlers    = []
-		self._tooltiptext = ""
-		self._infotext    = ""
-		self._footertext  = ""
 		self.widgets      = UI.Collection(self._widgets)
 		self.strings      = UI.Collection(self._strings)
 		self.data         = UI.Collection(self._data)
-		self.isRunning    = False
-		self.endMessage   = ""
-
-	# USER INTERACTION API
-	# -------------------------------------------------------------------------
-
-	def tooltip( self, text=-1 ):
-		"""Sets/Gets the current tooltip text."""
-		if text == -1:
-			return self._tooltiptext
-		else:
-			self._tooltiptext = str(text)
-
-	def info( self, text=-1 ):
-		"""Sets/Gets the current info text."""
-		if text == -1:
-			return self._infotext
-		else:
-			self._infotext = str(text)
-
-	def footer( self, text=-1 ):
-		"""Sets/Gets the current footer text."""
-		if text == -1:
-			return self._footertext
-		else:
-			self._footertext = str(text)
-
-	def dialog( self, dialog ):
-		"""Sets the dialog as this UI dialog. All events will be forwarded to
-		the dialog until exit."""
-		self._dialog = dialog
-		self._dialog.bind(self)
-
-	# WIDGET INFORMATION
-	# -------------------------------------------------------------------------
-
-	def getFocused( self ):
-		"""Gets the focused widget"""
-		focused     = self._listbox.get_focus()[0]
-		old_focused = None
-		while focused != old_focused:
-			old_focused = focused
-			if isinstance(focused, urwid.AttrWrap):
-				if focused.w: focused = focused.w
-			if hasattr(focused, "get_focus"):
-				if focused.get_focus(): focused = focused.get_focus()
-		return focused
-	
-	def getToplevel( self ):
-		"""Returns the toplevel widget, which may be a dialog's view, if there
-		was a dialog."""
-		if self._dialog:
-			return self._dialog.view()
-		else:
-			return self._frame
 
 	def id( self, widget ):
 		"""Returns the id for the given widget."""
@@ -337,7 +198,12 @@ class UI:
 	def onEdit( self, widget, callback ):
 		"""Sets a callback to the given widget for the 'edit' event"""
 		widget = self.unwrap(widget)
-		widget._urwideOnedit = callback
+		widget._urwideOnEdit = callback
+
+	def onPress( self, widget, callback ):
+		"""Sets a callback to the given widget for the 'edit' event"""
+		widget = self.unwrap(widget)
+		widget._urwideOnPress = callback
 
 	def _doPress( self, button ):
 		if hasattr(button, "_urwideOnPress"):
@@ -373,93 +239,8 @@ class UI:
 		else:
 			topwidget.keypress(self._currentSize, key)
 
-	# URWID EVENT-LOOP
-	# -------------------------------------------------------------------------
-
-	def main( self ):
-		#self._ui = urwid.curses_display.Screen()
-		self._ui  = urwid.raw_display.Screen()
-		if self._palette: self._ui.register_palette(self._palette)
-		self._ui.run_wrapper( self.run )
-
-	def run( self ):
-		self._ui.set_mouse_tracking()
-		self._currentSize = self._ui.get_cols_rows()
-		self.isRunning    = True
-		while self.isRunning:
-			self.loop()
-		# TODO: This does not work
-		if self.endMessage:
-			print self.endMessage
-
-	def end( self, msg=None ):
-		self.isRunning = False
-		self.endMessage = msg
-
-	def loop( self ):
-		"""This is the main URWID loop, where the event processing and
-		dispatching is done."""
-		# We get the focused element, and update the info and and tooltip
-		if self._dialog:
-			focused = self._dialog.view()
-		else:
-			focused = self.getFocused() or self._frame
-		# We update the tooltip and info in the footer
-		if hasattr(focused, "_urwideInfo"): self.info(getattr(self.strings, focused._urwideInfo))
-		if hasattr(focused, "_urwideTooltip"): self.tooltip(getattr(self.strings, focused._urwideTooltip))
-		# We trigger the on focus event
-		self._doFocus(focused, ensure=False)
-		# We draw the screen
-		self._updateFooter()
-		self.draw()
-		self.tooltip("")
-		self.info("")
-		# And process keys
-		if not self.isRunning: return
-		keys    = self._ui.get_input()
-		if isinstance(focused, urwid.Edit): old_text = focused.get_edit_text()
-		# We handle keys
-		for key in keys:
-			#if urwid.is_mouse_event(key):
-				# event, button, col, row = key
-				# self.view.mouse_event( self._currentSize, event, button, col, row, focus=True )
-				#pass
-			if key == "window resize":
-				self._currentSize = self._ui.get_cols_rows()
-			elif self._dialog:
-				self._doKeyPress(self._dialog.view(), key)
-			else:
-				self._doKeyPress(focused, key)
-		# We check if there was a change in the edit, and we fire and event
-		if isinstance(focused, urwid.Edit):
-			self._doEdit( focused, old_text, focused.get_edit_text(), ensure=False)
-
-	def draw( self ):
-		if self._dialog != None:
-			o = urwid.Overlay( self._dialog.view(), self._frame,
-				"center",
-				self._dialog.width(),
-				"middle",
-				self._dialog.height()
-			)
-			canvas = o.render( self._currentSize, focus=True )
-		else:
-			canvas = self._frame.render( self._currentSize, focus=True )
-		self._ui.draw_screen( self._currentSize, canvas )
-
-	def _updateFooter(self):
-		"""Updates the frame footer according to info and tooltip"""
-		self._footer.remove_widgets()
-		footer = []
-		if self.tooltip():
-			footer.append(self._styleWidget(urwid.Text(self.tooltip()), {'style':'tooltip'}))
-		if self.info():
-			footer.append(self._styleWidget(urwid.Text(self.info()), {'style':'info'}))
-		if self.footer():
-			footer.append(self._styleWidget(urwid.Text(self.footer()), {'style':'footer'}))
-		if footer:
-			map(self._footer.add_widget, footer)
-			self._footer.set_focus(0)
+	def getToplevel( self ):
+		raise Exception("Must be implemente by subclasses")
 
 	# PARSING WIDGETS STACK MANAGEMENT
 	# -------------------------------------------------------------------------
@@ -492,38 +273,13 @@ class UI:
 		text = string.Template(text).substitute(self._strings)
 		self._content = []
 		self._stack   = []
-		self._header  = None
 		self._currentLine = 0
 		for line in text.split("\n"):
 			line = line.strip()
 			if not line.startswith("#"): self._parseLine(line)
 			self._currentLine += 1
 		self._listbox     = self._createWidget(urwid.ListBox,self._content)
-		self._footer      = urwid.Pile([self.EMPTY])
-		self._frame       = self._createWidget(urwid.Frame,
-			self._listbox,
-			self._header,
-			self._footer
-		)
 		return self._content
-
-	def _parseUI( self, text ):
-		"""An auxiliary parse UI function that does not mutate this UI, but
-		returns a new ListBox"""
-		text = string.Template(text).substitute(self._strings)
-		old_c         = self._content
-		old_s         = self._stack
-		old_h         = self._header
-		self._content = result = []
-		self._stack   = []
-		self._header  = None
-		for line in text.split("\n"):
-			line = line.strip()
-			if not line.startswith("#"): self._parseLine(line)
-		self._content = old_c
-		self._stack   = old_s 
-		self._header  = old_h
-		return result
 
 	def parseStyle( self, data ):
 		"""Parses the given style."""
@@ -697,9 +453,6 @@ class UI:
 		ui.setdefault("style", "header")
 		self._header = self._createWidget(urwid.Text, data, ui=ui, args=args, kwargs=kwargs)
 
-	def _parseFtr( self, data ):
-		self.footer(data)
-
 	RE_BTN = re.compile("\s*\[([^\]]+)\]")
 	def _parseBtn( self, data ):
 		match = self.RE_BTN.match(data)
@@ -769,6 +522,269 @@ class UI:
 		if not self._stack: raise SyntaxError("End called without container widget")
 		end_content, end_callback, end_ui, end_args, end_kwargs = self._pop()
 		end_callback(end_content, end_ui, *end_args, **end_kwargs)
+
+
+# ------------------------------------------------------------------------------
+#
+# CONSOLE CLASS
+#
+# ------------------------------------------------------------------------------
+
+class Console(UI):
+	"""The console class allows to create console applications that work 'full
+	screen' within a terminal."""
+
+	def __init__( self ):
+		UI.__init__(self)
+		self._ui          = None
+		self._frame       = None
+		self._header      = None
+		self._footer      = None
+		self._listbox     = None
+		self._dialog      = None
+		self._tooltiptext = ""
+		self._infotext    = ""
+		self._footertext  = ""
+		self.isRunning    = False
+		self.endMessage   = ""
+
+	# USER INTERACTION API
+	# -------------------------------------------------------------------------
+
+	def tooltip( self, text=-1 ):
+		"""Sets/Gets the current tooltip text."""
+		if text == -1:
+			return self._tooltiptext
+		else:
+			self._tooltiptext = str(text)
+
+	def info( self, text=-1 ):
+		"""Sets/Gets the current info text."""
+		if text == -1:
+			return self._infotext
+		else:
+			self._infotext = str(text)
+
+	def footer( self, text=-1 ):
+		"""Sets/Gets the current footer text."""
+		if text == -1:
+			return self._footertext
+		else:
+			self._footertext = str(text)
+
+	def dialog( self, dialog ):
+		"""Sets the dialog as this UI dialog. All events will be forwarded to
+		the dialog until exit."""
+		self._dialog = dialog
+
+	# WIDGET INFORMATION
+	# -------------------------------------------------------------------------
+
+	def getFocused( self ):
+		"""Gets the focused widget"""
+		focused     = self._listbox.get_focus()[0]
+		old_focused = None
+		while focused != old_focused:
+			old_focused = focused
+			if isinstance(focused, urwid.AttrWrap):
+				if focused.w: focused = focused.w
+			if hasattr(focused, "get_focus"):
+				if focused.get_focus(): focused = focused.get_focus()
+		return focused
+	
+	def getToplevel( self ):
+		"""Returns the toplevel widget, which may be a dialog's view, if there
+		was a dialog."""
+		if self._dialog:
+			return self._dialog.view()
+		else:
+			return self._frame
+
+	# URWID EVENT-LOOP
+	# -------------------------------------------------------------------------
+
+	def main( self ):
+		#self._ui = urwid.curses_display.Screen()
+		self._ui  = urwid.raw_display.Screen()
+		if self._palette: self._ui.register_palette(self._palette)
+		self._ui.run_wrapper( self.run )
+
+	def run( self ):
+		self._ui.set_mouse_tracking()
+		self._currentSize = self._ui.get_cols_rows()
+		self.isRunning    = True
+		while self.isRunning:
+			self.loop()
+		# TODO: This does not work
+		if self.endMessage:
+			print self.endMessage
+
+	def end( self, msg=None ):
+		self.isRunning = False
+		self.endMessage = msg
+
+	def loop( self ):
+		"""This is the main URWID loop, where the event processing and
+		dispatching is done."""
+		# We get the focused element, and update the info and and tooltip
+		if self._dialog:
+			focused = self._dialog.view()
+		else:
+			focused = self.getFocused() or self._frame
+		# We update the tooltip and info in the footer
+		if hasattr(focused, "_urwideInfo"): self.info(getattr(self.strings, focused._urwideInfo))
+		if hasattr(focused, "_urwideTooltip"): self.tooltip(getattr(self.strings, focused._urwideTooltip))
+		# We trigger the on focus event
+		self._doFocus(focused, ensure=False)
+		# We draw the screen
+		self._updateFooter()
+		self.draw()
+		self.tooltip("")
+		self.info("")
+		# And process keys
+		if not self.isRunning: return
+		keys    = self._ui.get_input()
+		if isinstance(focused, urwid.Edit): old_text = focused.get_edit_text()
+		# We handle keys
+		for key in keys:
+			#if urwid.is_mouse_event(key):
+				# event, button, col, row = key
+				# self.view.mouse_event( self._currentSize, event, button, col, row, focus=True )
+				#pass
+			if key == "window resize":
+				self._currentSize = self._ui.get_cols_rows()
+			elif self._dialog:
+				self._doKeyPress(self._dialog.view(), key)
+			else:
+				self._doKeyPress(focused, key)
+		# We check if there was a change in the edit, and we fire and event
+		if isinstance(focused, urwid.Edit):
+			self._doEdit( focused, old_text, focused.get_edit_text(), ensure=False)
+
+	def draw( self ):
+		if self._dialog != None:
+			o = urwid.Overlay( self._dialog.view(), self._frame,
+				"center",
+				self._dialog.width(),
+				"middle",
+				self._dialog.height()
+			)
+			canvas = o.render( self._currentSize, focus=True )
+		else:
+			canvas = self._frame.render( self._currentSize, focus=True )
+		self._ui.draw_screen( self._currentSize, canvas )
+
+	def _updateFooter(self):
+		"""Updates the frame footer according to info and tooltip"""
+		self._footer.remove_widgets()
+		footer = []
+		if self.tooltip():
+			footer.append(self._styleWidget(urwid.Text(self.tooltip()), {'style':'tooltip'}))
+		if self.info():
+			footer.append(self._styleWidget(urwid.Text(self.info()), {'style':'info'}))
+		if self.footer():
+			footer.append(self._styleWidget(urwid.Text(self.footer()), {'style':'footer'}))
+		if footer:
+			map(self._footer.add_widget, footer)
+			self._footer.set_focus(0)
+
+	def parseUI( self, text ):
+		"""Parses the given text and initializes this user interface object."""
+		UI.parseUI(self, text)
+		self._listbox     = self._createWidget(urwid.ListBox,self._content)
+		self._footer      = urwid.Pile([self.EMPTY])
+		self._frame       = self._createWidget(urwid.Frame,
+			self._listbox,
+			self._header,
+			self._footer
+		)
+		return self._content
+
+	def _parseFtr( self, data ):
+		self.footer(data)
+
+# ------------------------------------------------------------------------------
+#
+# DIALOG CLASSES
+#
+# ------------------------------------------------------------------------------
+
+class Dialog(UI):
+	"""Utility class to create dialogs that will fit within a console
+	application."""
+
+	def __init__( self, parent, ui, width=40, height=30, style="dialog",
+	header="", palette=""):
+		UI.__init__(self)
+		self._width         = width
+		self._height        = height
+		self._style         = style
+		self._view          = None
+		self._headertext    = header
+		self._parent        = parent
+		self._startCallback = lambda x:x
+		self._endCallback   = lambda x:x
+		self._palette       = None
+		self.make(ui, palette)
+
+	def width( self ):
+		return self._width
+
+	def height( self ):
+		return self._height
+
+	def view( self ):
+		assert self._view
+		return self._view
+
+	def make( self, uitext, palui ):
+		self.parseStyle(palui)
+		palette  = list(self._parent._palette)
+		if self._palette:
+			palette.extend(self._palette)
+		self._palette = palette
+		style = self._styleWidget
+		assert self._view == None
+		content = []
+		if self._headertext:
+			content.append(style(urwid.Text(self._headerText), {'style':(self._style +'.header', "dialog.header", 'header')}))
+			content.append(urwid.Text(""))
+			content.append(urwid.Divider("_"))
+		content.extend(self.parseUI(uitext))
+		w = style(urwid.ListBox(content), {'style':(self._style +'.content', "dialog.content", self._style)})
+		w = urwid.Padding(w, ('fixed left', 2), ('fixed right', 2))
+		w = urwid.Filler(w,  ('fixed top', 1),  ('fixed bottom',1))
+		w = style(w,  {'style':(self._style+".body", "dialog.body", self._style)} )
+		w = style( w, {'style':(self._style, "dialog")} )
+		# Shadow
+		shadow = self.hasStyle( self._style + ".shadow", "dialog.shadow", "shadow")
+		border = self.hasStyle( self._style + ".border", "dialog.border", "border")
+		if shadow:
+			if border: border = (border, '  ')
+			else: border = '  '
+			w = urwid.Columns([w,('fixed', 2, urwid.AttrWrap(urwid.Filler(urwid.Text(border), "top") ,shadow))])
+			w = urwid.Frame( w, footer = urwid.AttrWrap(urwid.Text(border),shadow))
+		self._view = w
+		self._startCallback(self)
+
+	def onStart( self, callback ):
+		self._startCallback = callback
+
+	def onEnd( self, callback ):
+		self._endCallback = callback
+
+	def end( self ):
+		"""Call this to close the dialog."""
+		self._endCallback(self)
+		self._parent._dialog = None
+
+	def _parseHdr( self, data ):
+		if self._header != None:
+			raise UISyntaxError("Header can occur only once")
+		attr, data = self._argsFind(data)
+		ui, args, kwargs = self._parseAttributes(attr)
+		ui.setdefault("style", self.hasStyle("dialog.header", "header"))
+		self._content.append( self._createWidget(urwid.Text, data, ui=ui, args=args, kwargs=kwargs))
 
 # ------------------------------------------------------------------------------
 #
