@@ -166,7 +166,7 @@ class UI:
 			if isinstance(focused, urwid.AttrWrap):
 				if focused.w: focused = focused.w
 			if hasattr(focused, "get_focus"):
-				if focused.get_focus(): focused = focused.get_focused()
+				if focused.get_focus(): focused = focused.get_focus()
 		return focused
 
 	def id( self, widget ):
@@ -224,19 +224,27 @@ class UI:
 
 	def _handle( self, event_name, *args, **kwargs ):
 		"""Handle the given given event name."""
-		handler = self.handler()
-		return handler.respond(event_name, *args, **kwargs)
+		# If the event is an event name, we use the handler mechanism
+		if type(event_name) in (str, unicode):
+			handler = self.handler()
+			return handler.respond(event_name, *args, **kwargs)
+		# Otherwise we assume it is a callback
+		else:
+			return event_name(*args, **kwargs)
 
 	def onKey( self, widget, callback ):
 		"""Sets a callback to the given widget for the 'key' event"""
+		widget = self.unwrap(widget)
 		widget._urwideOnKey = callback
 
 	def onFocus( self, widget, callback ):
 		"""Sets a callback to the given widget for the 'focus' event"""
+		widget = self.unwrap(widget)
 		widget._urwideOnFocus = callback
 
 	def onEdit( self, widget, callback ):
 		"""Sets a callback to the given widget for the 'edit' event"""
+		widget = self.unwrap(widget)
 		widget._urwideOnedit = callback
 
 	def _doPress( self, button ):
