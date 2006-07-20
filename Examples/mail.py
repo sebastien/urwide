@@ -4,9 +4,6 @@ import urwide, os
 STYLE = """
 Frame         : Dg,  _, SO
 header        : WH, DC, BO
-footer        : LG,  _, SO
-tooltip       : LG,  _, SO
-info          : WH, Lg, BO
 shade         : DC, Lg, BO
 
 label         : Lg,  _, SO
@@ -37,7 +34,6 @@ Btn [Save]                          #btn_save   &press=save
 Btn [Send]                          #btn_commit &press=send
 End
 """ % ("me")
-)
 
 # Defines strings referenced in the UI
 ui                 = urwide.UI()

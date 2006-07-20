@@ -113,6 +113,7 @@ class UI:
 		self._palette     = None
 		self._frame       = None
 		self._header      = None
+		self._footer      = None
 		self._listbox     = None
 		self._frame       = None
 		self._topwidget   = None
@@ -122,6 +123,7 @@ class UI:
 		self._handlers    = []
 		self._tooltiptext = ""
 		self._infotext    = ""
+		self._footertext  = ""
 		self.widgets      = UI.Collection(self._widgets)
 		self.strings      = UI.Collection(self._strings)
 		self.data         = UI.Collection(self._data)
@@ -144,6 +146,13 @@ class UI:
 			return self._infotext
 		else:
 			self._infotext = str(text)
+
+	def footer( self, text=-1 ):
+		"""Sets/Gets the current footer text."""
+		if text == -1:
+			return self._footertext
+		else:
+			self._footertext = str(text)
 
 	# WIDGET INFORMATION
 	# -------------------------------------------------------------------------
@@ -300,18 +309,24 @@ class UI:
 		# We check if there was a change in the edit, and we fire and event
 		if isinstance(focused, urwid.Edit):
 			self._onEdit( focused, old_text, focused.get_edit_text(), ensure=False)
-	
+
 	def draw( self ):
 		canvas = self._topwidget.render( self._currentSize, focus=True )
 		self._ui.draw_screen( self._currentSize, canvas )
 
 	def _updateFooter(self):
 		"""Updates the frame footer according to info and tooltip"""
+		self._footer.remove_widgets()
 		footer = []
-		if self.tooltip(): footer.append(urwid.AttrWrap(urwid.Text(self.tooltip()), 'tooltip'))
-		if self.info(): footer.append(urwid.AttrWrap(urwid.Text(self.info()), 'info'))
-		if footer: self._frame.footer = urwid.Pile(footer)
-		else: self._frame.footer = None
+		if self.tooltip():
+			footer.append(self._styleWidget(urwid.Text(self.tooltip()), {'style':'tooltip'}))
+		if self.info():
+			footer.append(self._styleWidget(urwid.Text(self.info()), {'style':'info'}))
+		if self.footer():
+			footer.append(self._styleWidget(urwid.Text(self.footer()), {'style':'footer'}))
+		if footer:
+			map(self._footer.add_widget, footer)
+			self._footer.set_focus(0)
 
 	# PARSING WIDGETS STACK MANAGEMENT
 	# -------------------------------------------------------------------------
@@ -351,9 +366,11 @@ class UI:
 			if not line.startswith("#"): self._parseLine(line)
 			self._currentLine += 1
 		self._listbox     = self._createWidget(urwid.ListBox,self._content)
+		self._footer      = urwid.Pile([self.EMPTY])
 		self._frame       = self._createWidget(urwid.Frame,
 			self._listbox,
-			self._header
+			self._header,
+			self._footer
 		)
 		self._topwidget   = self._frame
 		return self._content
@@ -524,6 +541,9 @@ class UI:
 		ui, args, kwargs = self._parseAttributes(attr)
 		ui.setdefault("style", "header")
 		self._header = self._createWidget(urwid.Text, data, ui=ui, args=args, kwargs=kwargs)
+
+	def _parseFtr( self, data ):
+		self.footer(data)
 
 	RE_BTN = re.compile("\s*\[([^\]]+)\]")
 	def _parseBtn( self, data ):
