@@ -12,9 +12,9 @@
 # -----------------------------------------------------------------------------
 
 import string, re
-import urwid, urwid.curses_display
+import urwid, urwid.raw_display
 
-__version__ = "0.0.2"
+__version__ = "0.1.0"
 __doc__ = """\
 URWIDE provides a nice wrapper around the awesome urwid Python library. It
 enables the creation of complexe console user-interfaces, using a simple syntax. 
@@ -164,15 +164,15 @@ class UI:
 		while focused != old_focused:
 			old_focused = focused
 			if isinstance(focused, urwid.AttrWrap):
-				focused = focused.w or focused
+				if focused.w: focused = focused.w
 			if hasattr(focused, "get_focus"):
-				focused = focused.get_focus() or focused
+				if focused.get_focus(): focused = focused.get_focused()
 		return focused
 
 	def id( self, widget ):
 		"""Returns the id for the given widget."""
 		if hasattr(widget, "_urwideId"):
-			return getattr(widget, "_urwideId")
+			return widget._urwideId
 		else:
 			return None
 
@@ -189,7 +189,7 @@ class UI:
 	def unwrap( self, widget ):
 		"""Unwraps the widget (see `new` method)."""
 		if isinstance(widget, urwid.AttrWrap):
-			widget = widget.w or widget
+			if widget.w: widget = widget.w
 		return widget
 
 	# EVENT HANDLERS
@@ -227,33 +227,45 @@ class UI:
 		handler = self.handler()
 		return handler.respond(event_name, *args, **kwargs)
 
-	def _onPress( self, button ):
+	def onKey( self, widget, callback ):
+		"""Sets a callback to the given widget for the 'key' event"""
+		widget._urwideOnKey = callback
+
+	def onFocus( self, widget, callback ):
+		"""Sets a callback to the given widget for the 'focus' event"""
+		widget._urwideOnFocus = callback
+
+	def onEdit( self, widget, callback ):
+		"""Sets a callback to the given widget for the 'edit' event"""
+		widget._urwideOnedit = callback
+
+	def _doPress( self, button ):
 		if hasattr(button, "_urwideOnPress"):
-			event_name = getattr(button, "_urwideOnPress")
+			event_name = button._urwideOnPress
 			self._handle(event_name, button)
 		else:
 			raise UIRuntimeError("Widget does not respond to press event: %s" % (button))
 
-	def _onFocus( self, widget, ensure=True ):
+	def _doFocus( self, widget, ensure=True ):
 		if hasattr(widget, "_urwideOnFocus"):
-			event_name = getattr(widget, "_urwideOnFocus")
+			event_name = widget._urwideOnFocus
 			self._handle(event_name, widget)
 		elif ensure:
 			raise UIRuntimeError("Widget does not respond to focus event: %s" % (widget))
 
-	def _onEdit( self, widget, before, after, ensure=True ):
+	def _doEdit( self, widget, before, after, ensure=True ):
 		if hasattr(widget, "_urwideOnEdit"):
-			event_name = getattr(widget, "_urwideOnEdit")
+			event_name = widget._urwideOnEdit
 			self._handle(event_name, widget, before, after)
 		elif ensure:
 			raise UIRuntimeError("Widget does not respond to focus edit: %s" % (widget))
 
-	def _onKeyPress( self, widget, key ):
+	def _doKeyPress( self, widget, key ):
 		if widget:
 			if hasattr(widget, "_urwideOnKey"):
-				event_name = getattr(widget,  "_urwideOnKey")
+				event_name = widget._urwideOnKey
 				res = self._handle(event_name, widget, key)
-				if res == False:
+				if res == FORWARD:
 					self._topwidget.keypress(self._currentSize, key)
 			else:
 				self._topwidget.keypress(self._currentSize, key)
@@ -264,11 +276,13 @@ class UI:
 	# -------------------------------------------------------------------------
 
 	def main( self ):
-		self._ui = urwid.curses_display.Screen()
+		#self._ui = urwid.curses_display.Screen()
+		self._ui  = urwid.raw_display.Screen()
 		if self._palette: self._ui.register_palette(self._palette)
 		self._ui.run_wrapper( self.run )
 
 	def run( self ):
+		self._ui.set_mouse_tracking()
 		self._currentSize = self._ui.get_cols_rows()
 		self.isRunning    = True
 		while self.isRunning:
@@ -290,7 +304,7 @@ class UI:
 		if hasattr(focused, "_urwideInfo"): self.info(getattr(self.strings, focused._urwideInfo))
 		if hasattr(focused, "_urwideTooltip"): self.tooltip(getattr(self.strings, focused._urwideTooltip))
 		# We trigger the on focus event
-		self._onFocus(focused, ensure=False)
+		self._doFocus(focused, ensure=False)
 		# We draw the screen
 		self._updateFooter()
 		self.draw()
@@ -302,13 +316,17 @@ class UI:
 		if isinstance(focused, urwid.Edit): old_text = focused.get_edit_text()
 		# We handle keys
 		for key in keys:
+			#if urwid.is_mouse_event(key):
+				# event, button, col, row = key
+				# self.view.mouse_event( self._currentSize, event, button, col, row, focus=True )
+				#pass
 			if key == "window resize":
 				self._currentSize = self._ui.get_cols_rows()
 			else:
-				self._onKeyPress(focused, key)
+				self._doKeyPress(focused, key)
 		# We check if there was a change in the edit, and we fire and event
 		if isinstance(focused, urwid.Edit):
-			self._onEdit( focused, old_text, focused.get_edit_text(), ensure=False)
+			self._doEdit( focused, old_text, focused.get_edit_text(), ensure=False)
 
 	def draw( self ):
 		canvas = self._topwidget.render( self._currentSize, focus=True )
@@ -464,6 +482,7 @@ class UI:
 		returns a dict with the attributes."""
 		assert type(data) in (str, unicode)
 		def as_dict(*args, **kwargs): return args, kwargs
+		as_dict()
 		res = eval("as_dict(%s)" % (data))
 		try:
 			res = eval("as_dict(%s)" % (data))
@@ -493,27 +512,27 @@ class UI:
 		if not _ui: _ui = {}
 		if _ui.has_key("id"):
 			setattr(self.widgets, _ui["id"], widget)
-			setattr(widget, "_urwideId", _ui["id"])
+			widget._urwideId = _ui["id"]
 		if _ui.get("events"):
 			for event, handler in _ui["events"].items():
 				if   event == "press":
 					if not isinstance(widget, urwid.Button):
 						raise UISyntaxError("Press event only applicable to Button: " + repr(widget))
-					setattr(widget, "_urwideOnPress", handler)
+					widget._urwideOnPress = handler
 				elif event == "edit":
 					if not isinstance(widget, urwid.Edit):
 						raise UISyntaxError("Edit event only applicable to Edit: " + repr(widget))
-					setattr(widget, "_urwideOnEdit", handler)
+					widget._urwideOnEdit = handler
 				elif event == "focus":
-					setattr(widget, "_urwideOnFocus", handler)
+					widget._urwideOnFocus = handler
 				elif event == "key":
-					setattr(widget, "_urwideOnKey", handler)
+					widget._urwideOnKey = handler
 				else:
 					raise UISyntaxError("Unknown event type: " + event)
 		if _ui.get("info"):
-			setattr(widget, "_urwideInfo", _ui["info"])
+			widget._urwideInfo = _ui["info"]
 		if _ui.get("tooltip"):
-			setattr(widget, "_urwideTooltip", _ui["tooltip"])
+			widget._urwideTooltip = _ui["tooltip"]
 		res = self._styleWidget( widget, _ui )
 		return res
 
@@ -550,7 +569,7 @@ class UI:
 		match = self.RE_BTN.match(data)
 		data  = data[match.end():]
 		if not match: raise SyntaxError("Malformed button: " + repr(data))
-		self._add(self._createWidget(urwid.Button, match.group(1), self._onPress, data=data))
+		self._add(self._createWidget(urwid.Button, match.group(1), self._doPress, data=data))
 
 	def _parseDvd( self, data ):
 		ui, args, kwargs = self._parseAttributes(data[3:])
