@@ -14,6 +14,9 @@
 import string, re
 import urwid, urwid.raw_display
 
+# TODO: Separate UI so that both Frame and Dialog can inherit from it, and that
+# parsing and event handling are clearly separated
+
 __version__ = "0.1.0"
 __doc__ = """\
 URWIDE provides a nice wrapper around the awesome urwid Python library. It
@@ -58,6 +61,77 @@ CLASSES = {
 	"Ple": urwid.Pile,
 	"GFl": urwid.GridFlow,
 }
+
+# ------------------------------------------------------------------------------
+#
+# DIALOG CLASSES
+#
+# ------------------------------------------------------------------------------
+
+class Dialog:
+	"""Abstract class for creating dialogs."""
+
+	def __init__( self, header="", content=[], style='dialog', ui=None, width=40, height=30):
+		self._width   = width
+		self._height  = height
+		self._header  = header
+		self._content = []
+		self._style   = style
+		self._view    = None
+		self._ui      = None
+		self._uiText  = ui
+		self._startCallback = lambda x:x
+		self._endCallback   = lambda x:x
+
+	def width( self ):
+		return self._width
+
+	def height( self ):
+		return self._height
+
+	def view( self ):
+		assert self._view
+		return self._view
+
+	def bind( self, ui ):
+		style = ui._styleWidget
+		assert self._view == None
+		content = []
+		if self._header:
+			content.append(style(urwid.Text(self._header), {'style':(self._style +'.header', "dialog.header", 'header')}))
+			content.append(urwid.Text(""))
+			content.append(urwid.Divider("_"))
+		if self._uiText:
+			content.extend(ui._parseUI(self._uiText))
+		else:
+			content.extend(self._content)
+		w = style(urwid.ListBox(content), {'style':(self._style +'.content', "dialog.content", self._style)})
+		w = urwid.Padding(w, ('fixed left', 2), ('fixed right', 2))
+		w = urwid.Filler(w,  ('fixed top', 1),  ('fixed bottom',1))
+		w = style(w,  {'style':(self._style+".body", "dialog.body", self._style)} )
+		w = style( w, {'style':(self._style, "dialog")} )
+		# Shadow
+		shadow = ui.hasStyle( self._style + ".shadow", "dialog.shadow", "shadow")
+		border = ui.hasStyle( self._style + ".border", "dialog.border", "border")
+		if shadow:
+			if border: border = (border, '  ')
+			else: border = '  '
+			w = urwid.Columns([w,('fixed', 2, urwid.AttrWrap(urwid.Filler(urwid.Text(border), "top") ,shadow))])
+			w = urwid.Frame( w, footer = urwid.AttrWrap(urwid.Text(border),shadow))
+		self._view = w
+		self._ui = ui
+		self._startCallback(self)
+
+	def onStart( self, callback ):
+		self._startCallback = callback
+	
+	def onEnd( self, callback ):
+		self._endCallback = callback
+
+	def end( self ):
+		"""Call this to close the dialog."""
+		self._endCallback(self)
+		self._ui._dialog = None
 
 # ------------------------------------------------------------------------------
 #
@@ -115,8 +189,7 @@ class UI:
 		self._header      = None
 		self._footer      = None
 		self._listbox     = None
-		self._frame       = None
-		self._topwidget   = None
+		self._dialog      = None
 		self._widgets     = {}
 		self._strings     = {}
 		self._data        = {}
@@ -154,6 +227,12 @@ class UI:
 		else:
 			self._footertext = str(text)
 
+	def dialog( self, dialog ):
+		"""Sets the dialog as this UI dialog. All events will be forwarded to
+		the dialog until exit."""
+		self._dialog = dialog
+		self._dialog.bind(self)
+
 	# WIDGET INFORMATION
 	# -------------------------------------------------------------------------
 
@@ -168,6 +247,14 @@ class UI:
 			if hasattr(focused, "get_focus"):
 				if focused.get_focus(): focused = focused.get_focus()
 		return focused
+	
+	def getToplevel( self ):
+		"""Returns the toplevel widget, which may be a dialog's view, if there
+		was a dialog."""
+		if self._dialog:
+			return self._dialog.view()
+		else:
+			return self._frame
 
 	def id( self, widget ):
 		"""Returns the id for the given widget."""
@@ -222,15 +309,20 @@ class UI:
 		handle events."""
 		return self._handlers.pop()
 
-	def _handle( self, event_name, *args, **kwargs ):
+	def _handle( self, event_name, widget, *args, **kwargs ):
 		"""Handle the given given event name."""
 		# If the event is an event name, we use the handler mechanism
 		if type(event_name) in (str, unicode):
 			handler = self.handler()
-			return handler.respond(event_name, *args, **kwargs)
+			if handler.responds(event_name):
+				return handler.respond(event_name, widget, *args, **kwargs)
+			elif hasattr(widget, event_name):
+				getattr(widget, event_name, *args, **kwargs)
+			else:
+				raise UIRuntimeError("No handler for event: %s in %s" % (event_name, widget))
 		# Otherwise we assume it is a callback
 		else:
-			return event_name(*args, **kwargs)
+			return event_name(widget,  *args, **kwargs)
 
 	def onKey( self, widget, callback ):
 		"""Sets a callback to the given widget for the 'key' event"""
@@ -269,16 +361,17 @@ class UI:
 			raise UIRuntimeError("Widget does not respond to focus edit: %s" % (widget))
 
 	def _doKeyPress( self, widget, key ):
+		topwidget = self.getToplevel()
 		if widget:
 			if hasattr(widget, "_urwideOnKey"):
 				event_name = widget._urwideOnKey
 				res = self._handle(event_name, widget, key)
 				if res == FORWARD:
-					self._topwidget.keypress(self._currentSize, key)
+					topwidget.keypress(self._currentSize, key)
 			else:
-				self._topwidget.keypress(self._currentSize, key)
+				topwidget.keypress(self._currentSize, key)
 		else:
-			self._topwidget.keypress(self._currentSize, key)
+			topwidget.keypress(self._currentSize, key)
 
 	# URWID EVENT-LOOP
 	# -------------------------------------------------------------------------
@@ -307,7 +400,10 @@ class UI:
 		"""This is the main URWID loop, where the event processing and
 		dispatching is done."""
 		# We get the focused element, and update the info and and tooltip
-		focused = self.getFocused() or self._topwidget
+		if self._dialog:
+			focused = self._dialog.view()
+		else:
+			focused = self.getFocused() or self._frame
 		# We update the tooltip and info in the footer
 		if hasattr(focused, "_urwideInfo"): self.info(getattr(self.strings, focused._urwideInfo))
 		if hasattr(focused, "_urwideTooltip"): self.tooltip(getattr(self.strings, focused._urwideTooltip))
@@ -330,6 +426,8 @@ class UI:
 				#pass
 			if key == "window resize":
 				self._currentSize = self._ui.get_cols_rows()
+			elif self._dialog:
+				self._doKeyPress(self._dialog.view(), key)
 			else:
 				self._doKeyPress(focused, key)
 		# We check if there was a change in the edit, and we fire and event
@@ -337,7 +435,16 @@ class UI:
 			self._doEdit( focused, old_text, focused.get_edit_text(), ensure=False)
 
 	def draw( self ):
-		canvas = self._topwidget.render( self._currentSize, focus=True )
+		if self._dialog != None:
+			o = urwid.Overlay( self._dialog.view(), self._frame,
+				"center",
+				self._dialog.width(),
+				"middle",
+				self._dialog.height()
+			)
+			canvas = o.render( self._currentSize, focus=True )
+		else:
+			canvas = self._frame.render( self._currentSize, focus=True )
 		self._ui.draw_screen( self._currentSize, canvas )
 
 	def _updateFooter(self):
@@ -398,8 +505,25 @@ class UI:
 			self._header,
 			self._footer
 		)
-		self._topwidget   = self._frame
 		return self._content
+
+	def _parseUI( self, text ):
+		"""An auxiliary parse UI function that does not mutate this UI, but
+		returns a new ListBox"""
+		text = string.Template(text).substitute(self._strings)
+		old_c         = self._content
+		old_s         = self._stack
+		old_h         = self._header
+		self._content = result = []
+		self._stack   = []
+		self._header  = None
+		for line in text.split("\n"):
+			line = line.strip()
+			if not line.startswith("#"): self._parseLine(line)
+		self._content = old_c
+		self._stack   = old_s 
+		self._header  = old_h
+		return result
 
 	def parseStyle( self, data ):
 		"""Parses the given style."""
@@ -464,16 +588,20 @@ class UI:
 			data = data[match.end():]
 		return ui, data
 
-	def hasStyle( self, name ):
-		for r in self._palette:
-			if r[0] == name: return name
+	def hasStyle( self, *styles ):
+		for s in styles:
+			for r in self._palette:
+				if r[0] == s: return s
 		return False
-	
+
 	def _styleWidget( self, widget, ui ):
 		"""Wraps the given widget so that it belongs to the given style."""
 		styles = []
 		if ui.has_key("id"): styles.append("#" + ui["id"])
-		if ui.has_key("style"): styles.append(ui["style"])
+		if ui.has_key("style"):
+			s = ui["style"]
+			if type(s) in (tuple, list): styles.extend(s)
+			else: styles.append(s)
 		styles.append( widget.__class__.__name__ )
 		unf_styles = filter(lambda s:self.hasStyle(s), styles)
 		foc_styles = filter(lambda s:self.hasStyle(s), map(lambda s:s+"*", styles))
@@ -666,6 +794,12 @@ class Handler:
 		want to handle the event, True if the event was handled."""
 		responder = self.responder(event)
 		return responder(*args, **kwargs) != FORWARD
+
+	def responds( self, event ):
+		"""Tells if the handler responds to the given event."""
+		_event_name = "on" + event[0].upper() + event[1:]
+		if hasattr(self, _event_name): return _event_name
+		else: return None
 
 	def responder( self, event ):
 		"""Returns the function that responds to the given event."""
