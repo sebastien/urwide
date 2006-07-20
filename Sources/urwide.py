@@ -233,21 +233,43 @@ class UI:
 			raise UIRuntimeError("Widget does not respond to focus edit: %s" % (widget))
 
 	def _doKeyPress( self, widget, key ):
+		# THE RULES
+		# ---------
+		#
+		# 1) Widget defines an onKey event handler, it is triggered
+		# 2) If the handler returned False, or was not existent, we
+		#    forward to the top widget
+		# 3) The onKeyPress event is handled by the keyPress handler if the
+		#    focused widget is not editable
+		# 4) If no keyPresss handler is defined, the default key_press event is
+		#    handled
 		topwidget = self.getToplevel()
 		if widget:
 			if hasattr(widget, "_urwideOnKey"):
 				event_name = widget._urwideOnKey
 				res = self._handle(event_name, widget, key)
 				if res == FORWARD:
-					topwidget.keypress(self._currentSize, key)
+					self._doKeyPress(None, key)
 			elif widget != topwidget:
 				self._doKeyPress(topwidget, key)
 			else:
-				topwidget.keypress(self._currentSize, key)
-		elif widget != topwidget:
+				self._doKeyPress(None, key)
+		elif widget and widget != topwidget:
 			self._doKeyPress(topwidget, key)
 		else:
-			topwidget.keypress(self._currentSize, key)
+			if key == "tab":
+				self.focusNext()
+			elif key == "shift tab":
+				self.focusPrevious()
+			if self.isEditable(self.getFocused()):
+				res = False
+			else:
+				try:
+					res = self._handle("keyPress", topwidget, key)
+				except UIRuntimeError:
+					res = False
+			if res == False:
+				topwidget.keypress(self._currentSize, key)
 
 	def getToplevel( self ):
 		raise Exception("Must be implemente by subclasses")
@@ -602,6 +624,41 @@ class Console(UI):
 				if focused.get_focus(): focused = focused.get_focus()
 		return focused
 	
+	def isEditable( self, widget ):
+		if   isinstance(widget, urwid.Edit): return True
+		if   isinstance(widget, urwid.IntEdit): return True
+		return False
+
+	def isFocusable( self, widget ):
+		if   isinstance(widget, urwid.Edit): return True
+		if   isinstance(widget, urwid.IntEdit): return True
+		if   isinstance(widget, urwid.Button): return True
+		if   isinstance(widget, urwid.CheckBox): return True
+		if   isinstance(widget, urwid.RadioButton): return True
+		return False
+
+	def focusNext( self ):
+		focused = self._listbox.get_focus()[1] + 1
+		self._listbox.set_focus(focused)
+		while True:
+			if not self.isFocusable(self.getFocused()) \
+			and self._listbox.body.get_next(focused)[0] != None:
+				focused += 1
+				self._listbox.set_focus(focused)
+			else:
+				break
+
+	def focusPrevious( self ):
+		focused = max(self._listbox.get_focus()[1] - 1, 0)
+		self._listbox.set_focus(focused)
+		while True:
+			if not self.isFocusable(self.getFocused()) \
+			and focused > 0:
+				focused -= 1
+				self._listbox.set_focus(focused)
+			else:
+				break
+
 	def getToplevel( self ):
 		"""Returns the toplevel widget, which may be a dialog's view, if there
 		was a dialog."""
@@ -647,7 +704,7 @@ class Console(UI):
 		if hasattr(focused, "_urwideInfo"):
 			self.info(self._strings.get(focused._urwideInfo) or focused._urwideInfo)
 		if hasattr(focused, "_urwideTooltip"):
-			self.info(self._strings.get(focused._urwideTooltip) or focused._urwideTooltip)
+			self.tooltip(self._strings.get(focused._urwideTooltip) or focused._urwideTooltip)
 		# We draw the screen
 		self._updateFooter()
 		self.draw()
