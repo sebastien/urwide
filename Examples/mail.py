@@ -1,23 +1,23 @@
 import urwide, os
 
 # Defines the style and user interface
-STYLE = """
-Frame         : Dg,  _, SO
+CONSOLE_STYLE = """
+Frame         : Dg, DB, SO
 header        : WH, DC, BO
-shade         : DC, Lg, BO
+shade         : DC, DB, BO
 
-label         : Lg,  _, SO
+label         : Lg, DB, SO
 
-Edit          : BL,  _, BO
+Edit          : WH, DB, BO
 Edit*         : DM, Lg, BO
 Button        : WH, DC, BO
 Button*       : WH, DM, BO
-Divider       : Lg,  _, SO
+Divider       : Lg, DB, SO
 
-#subject      : DM,  _, SO
+#subject      : DM, DB, SO
 """
 
-UI = """\
+CONSOLE_UI = """\
 Hdr URWIDE Mail Editor
 ::: @shade
 
@@ -35,12 +35,6 @@ Btn [Send]                          #btn_commit &press=send
 End
 """ % ("me")
 
-# Defines strings referenced in the UI
-ui                 = urwide.Console()
-ui.strings.FROM    = "Your email address"
-ui.strings.TO      = "Comma separated list of recipient adresses"
-ui.strings.SUBJECT = "The subject for your email"
-ui.parse(STYLE, UI)
 
 # Event handler
 class Handler(urwide.Handler):
@@ -59,7 +53,12 @@ class Handler(urwide.Handler):
 		if oldtext != newtext:
 			self.ui.info("Email content changed !")
 
-ui.handler(Handler())
+# Defines strings referenced in the UI
+ui                 = urwide.Console()
+ui.strings.FROM    = "Your email address"
+ui.strings.TO      = "Comma separated list of recipient adresses"
+ui.strings.SUBJECT = "The subject for your email"
+ui.create(CONSOLE_STYLE, CONSOLE_UI, Handler())
 
 # Main
 if __name__ == "__main__":

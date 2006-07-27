@@ -296,9 +296,11 @@ class UI:
 	# GENERIC PARSING METHODS
 	# -------------------------------------------------------------------------
 
-	def parse( self, style, ui ):
+	def create( self, style, ui, handler=None ):
 		self.parseStyle(style)
 		self.parseUI(ui)
+		if handler: self.handler(handler)
+		return self
 
 	def parseUI( self, text ):
 		"""Parses the given text and initializes this user interface object."""
@@ -675,16 +677,15 @@ class Console(UI):
 		self._ui  = urwid.raw_display.Screen()
 		if self._palette: self._ui.register_palette(self._palette)
 		self._ui.run_wrapper( self.run )
+		if self.endMessage:
+			print self.endMessage
 
 	def run( self ):
-		self._ui.set_mouse_tracking()
+		#self._ui.set_mouse_tracking()
 		self._currentSize = self._ui.get_cols_rows()
 		self.isRunning    = True
 		while self.isRunning:
 			self.loop()
-		# TODO: This does not work
-		if self.endMessage:
-			print self.endMessage
 
 	def end( self, msg=None ):
 		self.isRunning = False

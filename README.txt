@@ -1,258 +1,349 @@
 == URWIDE
--- An easy to use extension to URWID
+== An easy to use extension to URWID
 -- Author: Sébastien Pierre <sebastien@xprima.com>
--- Date: 17-Jul-2005
+-- Date: 17-Jul-2006
 
 Introduction
 ============
 
-[URWID] is a very powerful library that allows to write command-line interfaces
-in the [Python] language.
+    [URWID][1] is a very powerful library that allows to write command-line interfaces
+    in the [Python][2] language.
 
-While URWID is very powerful, it is quite low-level compared to existing UI
-toolkits, which can make development of more advanced user interface difficult.
-The main idea behing URWIDE is to extend URWID with a set of functions that
-allow to write an URWID application with less code, and that helps you in
-common tasks involved in writing a UI.
+    While URWID is very powerful, it is quite low-level compared to existing UI
+    toolkits, which can make development of more advanced user interface a bit difficult.
 
-UI generation
-=============
+    The main idea behing URWIDE is to extend URWID with a set of functions that
+    allow to *write an URWID application with less code*, and that helps you in
+    common tasks involved in writing a UI.
 
-URWIDE allows to describe a user interface using a very simple line-oriented
-language. You can define a complete UI in just a few lines. This description
-allows you to:
+    Currently, URWIDE offers you the following features:
 
-    - Identify your widgets with a unique name
-    - Associate detailed information and tooltip
-    - Bind style information to your widgets
-    - Bind event handlers
+    - Natural text-based description of your UI
+    - Event support (key, focus, press, edit)
+    - Collections of strings (for i18n)
+    - Dialog support
 
-The description syntax is very simple, and simply consists of a set of lines of
-the following form:
+    To give you an idea of what URWIDE can provide, here is a very simple
+    `helloworld.py` example:
 
->    CLS DATA? [ID|STYLE|INFO|EVENT]* [ARGUMENTS]
+    >   import urwide
+    >   CONSOLE_STYLE = """
+    >   Frame         : Dg,  _, SO
+    >   header        : WH, DC, BO
+    >   """
+    >   CONSOLE_UI = """\
+    >   Hdr URWIDE Hello world
+    >   ___
+    >   
+    >   Txt Hello World !                     args:#txt_hello
+    >   GFl
+    >   Btn [Hello !]                         &press=hello
+    >   Btn [Bye   !]                         &press=bye
+    >   End
+    >   """
+    >   class Handler(urwide.Handler):
+    >       def onHello( self, button ):
+    >           self.ui.widgets.txt_hello.set_text("You said hello !")
+    >       def onBye( self, button ):
+    >           self.ui.end("bye !")
+    >   urwide.Console().create(CONSOLE_STYLE, CONSOLE_UI, Handler()).main()
 
-    - _CLS_ is a three letter code that corresponds to the widget code
-    - _DATA_ is a widget-specific text content
-    - _ID_ sets the identifier of the widget
-    - _STYLE_ sets the style class of the widget
-    - _EVENT_ defines an event handler attached to the widget
-    - _INFO_ defines the widget tooltip and detailed information 
-    - _ARGUMENTS defines additional widget attributes 
+UI Description Language
+=======================
 
-Widget identifier
------------------
+    URWIDE allows to describe a user interface using a very simple line-oriented
+    language. You can define a complete UI in just a few lines. This description
+    allows you to:
 
->    #id
+        - Identify your widgets with a unique name
+        - Associate detailed information and tooltip
+        - Bind style information to your widgets
+        - Bind event handlers
 
-Widget style class
-------------------
+    The description syntax is very simple, and simply consists of a set of lines of
+    the following form:
 
->    @style
+    >   CLS DATA? [ID|STYLE|INFO|EVENT]* [ARGUMENTS]
 
-Widget tooltip
---------------
+    as an example, here is the definition of a button with `Click me!` as label,
+    which will be available as `btn_click`, displayed using the `clickButton`
+    style, displaying the `CLICK` tooltip when focused, and calling the
+    `clicked` callback when pressed :
 
->    !TEXT
+    >   Btn [Click me!] #btn_click @clickButton !CLICK &press=clicked
 
-Widget info
------------
+    To sum up the available attributes:
 
->    ?TEXT
+        - _CLS_ is a three letter code that corresponds to the widget code
+        - _DATA_ is a widget-specific text content
+        - _ID_ sets the identifier of the widget
+        - _STYLE_ sets the style class of the widget
+        - _EVENT_ defines an event handler attached to the widget
+        - _INFO_ defines the widget tooltip and detailed information 
+        - _ARGUMENTS_ defines additional widget attributes 
 
-Event handling
-----------------
+    Widget identifier::
 
->    &event=method
+        >    #id
 
-Supported events:
+    Widget style class::
 
-    - _focus_ 
-    - _edit_
-    - _key_
+        >    @style
 
-Python arguments
-----------------
+    Widget tooltip::
 
->    name=value, name=value, name=value
+        >    !TEXT
 
-Comments
---------
+    Widget info::
 
->   # This is a comment
+        >    ?TEXT
 
-Comments are useful to annotate your URWIDE source code, or to enable/disable
-parts of it. Comments are simply lines starting with the `#` character.
+    Event handling::
 
-Blocks
-------
+        >    &event=method
 
->   Ple
->   Txt I am within the above pile
->   End
+    Supported events::
 
-or
+        - _focus_ 
+        - _edit_
+        - _key_
 
->   GFl
->   Txt Here are buttons
->   Btn [previous]
->   Btn [next]
->   End
+    Python arguments::
+
+    >    name=value, name=value, name=value
+
+    Comments::
+
+    >   # This is a comment
+
+    Comments are useful to annotate your URWIDE source code, or to enable/disable
+    parts of it. Comments are simply lines starting with the `#` character.
+
+    Blocks
+    ------
+
+    >   Ple
+    >   Txt I am within the above pile
+    >   End
+
+    or
+
+    >   GFl
+    >   Txt Here are buttons
+    >   Btn [previous]
+    >   Btn [next]
+    >   End
+
+    == Syntax summary
+    ==========================================================================
+    *SYNTAX*          || *DESCRIPTION*
+    ==========================================================================
+    `#name`           || Widget name, makes it accessible as `ui.widgets.name`
+    --------------------------------------------------------------------------
+    `@class`          || Style class associated with the widget.
+    --------------------------------------------------------------------------
+    `&event=callback` || Makes the `onCallback` method of the `ui.handler()`
+                      || react to the  `event` (press, key, edit, focus) when
+                      || it occurs on the widget.
+    --------------------------------------------------------------------------
+    `!TOOLTIP`        || `ui.strings.TOOLTIP` or `"TOOLTIP"` is used as a
+                      || tooltip for the widget (when it is focused)
+    --------------------------------------------------------------------------
+    `?INFO`           || `ui.strings.INFO` or `"INFO"` is used as
+                      || information for the widget (when it is focused)
+    --------------------------------------------------------------------------
+    `arg=value, ...`  || Additional Python arguments that will be passed to
+                      || the widget constructor (eg. `multiline=true` for Edit)
+    --------------------------------------------------------------------------
+    `# comment`       || a comment line that will be ignored when parsing
+    ==========================================================================
 
 Supported Widgets
 =================
 
-Blank
------
+    Blank
+    -----
 
->   
+    >   
 
-Divider
--------
+    Divider
+    -------
 
->   ---
->   ===
->   :::
-
-
-Text
-----
-
->   Txt TEXT
->   Txt TEXT args:ARGUMENTS
-
-Button
-------
-
->   Btn [LABEL]
+    >   ---
+    >   ===
+    >   :::
 
 
-Pile
-----
+    Text
+    ----
 
-Gridflow
---------
+    >   Txt TEXT
+    >   Txt TEXT args:ARGUMENTS
 
->   Gfl 
+        Note _________________________________________________________________
+        Be sure to use the `args:` prefix to give arguments to the text, because
+        otherwise your arguments will be interpreted as being part of the
+        displayed text.
 
-Events
-======
+    Button
+    ------
 
-URWIDE provides support for handling events and binding event handlers to each
-individual widget. The events currently supported are:
+    >   Btn [LABEL]
 
- - `focus` (any), which is triggered when the widget received focus
- - `key` (any), which is triggered when a key is pressed on a widget
- - `edit` (Edit), which is triggered after an Edit was edited
- - `press` (Buttons, CheckBox), which is triggered when a button is pressed
 
-Events are handled by _handlers_, which are objects that define methods that
-implement a particular reaction. For instance, if you have an event named
-`showHelp`, you handler class will be like that:
+    Pile
+    ----
 
->   class MyHandler(urwide.Handler):
->
->       def onShowHelp( self, widget ):
->           # Do something here
+    Gridflow
+    --------
 
-And then, if you want to trigger the "`showHelp`" event when a button is
-pressed:
+    >   Gfl 
 
->   Btn [Show help] &press=showHelp
+    Summary
+    -------
+  
+    == Supported Widgets
+    ==========================================================================
+    *CODE* || *WIDGET*      ||*TYPE*
+    ==========================================================================
+    `Txt`  || Text          || widget
+    --------------------------------------------------------------------------
+    `Edt`  || Edit          || widget
+    --------------------------------------------------------------------------
+    `Btn`  || Button        || widget
+    --------------------------------------------------------------------------
+    `Dvd`  || Divider       || widget
+    --------------------------------------------------------------------------
+    `Ple`  || Pile          || container
+    --------------------------------------------------------------------------
+    `GFl`  || GridFlow      || container
+    ==========================================================================
 
-This will automatically make the binding between the ui and the handler,
-provided that you register your handler into the ui:
 
->   ui.handler(MyHandler())
+Event handling
+==============
+
+    URWIDE provides support for handling events and binding event handlers to each
+    individual widget. The events currently supported are:
+
+     - `focus` (any), which is triggered when the widget received focus
+     - `key` (any), which is triggered when a key is pressed on a widget
+     - `edit` (Edit), which is triggered after an Edit was edited
+     - `press` (Buttons, CheckBox), which is triggered when a button is pressed
+
+    Events are handled by _handlers_, which are objects that define methods that
+    implement a particular reaction. For instance, if you have an event named
+    `showHelp`, you handler class will be like that:
+
+    >   class MyHandler(urwide.Handler):
+    >   
+    >       def onShowHelp( self, widget ):
+    >           # Do something here
+
+    And then, if you want to trigger the "`showHelp`" event when a button is
+    pressed:
+
+    >   Btn [Show help] &press=showHelp
+
+    This will automatically make the binding between the ui and the handler,
+    provided that you register your handler into the ui:
+
+    >   ui.handler(MyHandler())
 
 Collections
 ===========
 
-URWIDE will create an instance of the `urwide.UI` class when given a style (will
-be presented later) and a UI description. This instance will take care of
-everything for you, from events to widgets. You will generally only want to
-access or modify the `widgets` and `strings` collections.
+    URWIDE will create an instance of the `urwide.UI` class when given a style (will
+    be presented later) and a UI description. This instance will take care of
+    everything for you, from events to widgets. You will generally only want to
+    access or modify the `widgets` and `strings` collections.
 
-Both collections can be edited by accessing values as attribute. Setting an
-attribute will add a key within the collection, accessing it will return the
-bound value, or raise an exception if the value was not found.
+    Both collections can be edited by accessing values as attribute. Setting an
+    attribute will add a key within the collection, accessing it will return the
+    bound value, or raise an exception if the value was not found.
 
->   ui.strings.SOME_TEXT = "This text can be used as a value in a widget"
+    >   ui.strings.SOME_TEXT = "This text can be used as a value in a widget"
+
+    >   ui.widgets
 
 
 Style syntax
 ============
 
->   [STYLE] : FG, BG, FN
+    >   [STYLE] : FG, BG, FN
 
-    - _STYLE_ is the name of the style
-    - _FG_ is the foreground color
-    - _BG_ is the backgrond color
-    - _FN_ is the font style
+        - _STYLE_ is the name of the style
+        - _FG_ is the foreground color
+        - _BG_ is the backgrond color
+        - _FN_ is the font style
 
-A style name can be:
+    A style name can be:
 
-    - _URWID widget name_ (`Edit`, `Text`, etc)
-    - _style name_ (defined by `@style` in the widgets list)
-    - _widget id_, as defined by the `#id` of the UI
+        - _URWID widget name_ (`Edit`, `Text`, etc)
+        - _style name_ (defined by `@style` in the widgets list)
+        - _widget id_, as defined by the `#id` of the UI
 
-Focus styles can be specified by appending `*` to each style name:
+    Focus styles can be specified by appending `*` to each style name:
 
->   Edit        : BL, _, SO
->   Edit*       : DM, Lg, SO
+    >   Edit        : BL, _, SO
+    >   Edit*       : DM, Lg, SO
 
-means that all `Edit` widgets will have black as color when unfocused, and dark
-magenta when focused.
+    means that all `Edit` widgets will have black as color when unfocused, and dark
+    magenta when focused.
 
 
-Here is a table that sums up the possible values that can be used to describe
-the styles. These values are described in the URWID reference for the [Screen](
-http://excess.org/urwid/reference.html#Screen-register_palette_entry)class.
+    Here is a table that sums up the possible values that can be used to describe
+    the styles. These values are described in the URWID reference for the
+    [Screen](http://excess.org/urwid/reference.html#Screen-register_palette_entry)
+    class.
 
-== Style values
-================================================================================
-*CODE* || *VALUE*       ||*FOREGROUND*||*BACKGROUND*|| *FONT*
-================================================================================
-WH     || white         || yes        || no         || -
---------------------------------------------------------------------------------
-BL     || black         || no         || yes        || -
---------------------------------------------------------------------------------
-YL     || yellow        || yes        || no         || -
---------------------------------------------------------------------------------
-BR     || brown         || yes        || no         || -
---------------------------------------------------------------------------------
-DG     || dark red      || no         || yes        || -
---------------------------------------------------------------------------------
-DB     || dark blue     || yes        || yes        || -
---------------------------------------------------------------------------------
-DG     || dark green    || yes        || yes        || -
---------------------------------------------------------------------------------
-DM     || dark magenta  || yes        || yes        || -
---------------------------------------------------------------------------------
-DC     || dark cyan     || yes        || yes        || -
---------------------------------------------------------------------------------
-Dg     || dark gray     || yes        || no         || -
---------------------------------------------------------------------------------
-LR     || light red     || yes        || no         || -
---------------------------------------------------------------------------------
-LG     || light green   || yes        || no         || -
---------------------------------------------------------------------------------
-LB     || light blue    || yes        || no         || -
---------------------------------------------------------------------------------
-LM     || light magenta || yes        || no         || -
---------------------------------------------------------------------------------
-LC     || light cyan    || yes        || no         || -
---------------------------------------------------------------------------------
-Lg     || light gray    || yes        || yes        || -
---------------------------------------------------------------------------------
-BO     || bold          || -          || -          || yes
---------------------------------------------------------------------------------
-UL     || underline     || -          || -          || yes
---------------------------------------------------------------------------------
-SO     || standout      || -          || -          || yes
---------------------------------------------------------------------------------
-_      || default       || yes        || yes        || yes
-================================================================================
+    == Style values
+    ==========================================================================
+    *CODE* || *VALUE*       ||*FOREGROUND*||*BACKGROUND*|| *FONT*
+    ==========================================================================
+    WH     || white         || yes        || no         || -
+    --------------------------------------------------------------------------
+    BL     || black         || no         || yes        || -
+    --------------------------------------------------------------------------
+    YL     || yellow        || yes        || no         || -
+    --------------------------------------------------------------------------
+    BR     || brown         || yes        || no         || -
+    --------------------------------------------------------------------------
+    DG     || dark red      || no         || yes        || -
+    --------------------------------------------------------------------------
+    DB     || dark blue     || yes        || yes        || -
+    --------------------------------------------------------------------------
+    DG     || dark green    || yes        || yes        || -
+    --------------------------------------------------------------------------
+    DM     || dark magenta  || yes        || yes        || -
+    --------------------------------------------------------------------------
+    DC     || dark cyan     || yes        || yes        || -
+    --------------------------------------------------------------------------
+    Dg     || dark gray     || yes        || no         || -
+    --------------------------------------------------------------------------
+    LR     || light red     || yes        || no         || -
+    --------------------------------------------------------------------------
+    LG     || light green   || yes        || no         || -
+    --------------------------------------------------------------------------
+    LB     || light blue    || yes        || no         || -
+    --------------------------------------------------------------------------
+    LM     || light magenta || yes        || no         || -
+    --------------------------------------------------------------------------
+    LC     || light cyan    || yes        || no         || -
+    --------------------------------------------------------------------------
+    Lg     || light gray    || yes        || yes        || -
+    --------------------------------------------------------------------------
+    BO     || bold          || -          || -          || yes
+    --------------------------------------------------------------------------
+    UL     || underline     || -          || -          || yes
+    --------------------------------------------------------------------------
+    SO     || standout      || -          || -          || yes
+    --------------------------------------------------------------------------
+    _      || default       || yes        || yes        || yes
+    ==========================================================================
 
+
+ [1]: URWID by Ian Ward, <http://www.excess.org/urwid>
+ [2]: Python Language (2.4), <http://www.python.org>
 
 # vim: ts=4 sw=4 et fenc=latin-1 syn=kiwi
