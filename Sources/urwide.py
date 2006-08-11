@@ -57,6 +57,91 @@ CENTER = "center"
 
 # ------------------------------------------------------------------------------
 #
+# URWID Patching
+#
+# ------------------------------------------------------------------------------
+
+class PatchedListBox(urwid.ListBox):
+
+	_parent = None
+
+	def __init__( self, *args, **kwargs ):
+		PatchedListBox._parent.__init__(self, *args, **kwargs)
+
+	def remove_widgets( self ):
+		"""Remove all widgets from the body."""
+		if isinstance(self.body, SimpleListWalker):
+			self.body = SimpleListWalker([])
+		else:
+			raise Exception("Method only supported for SimpleListWalker")
+
+	def add_widget( self, widget ):
+		"""Adds a widget to the body of this list box."""
+		if isinstance(self.body, SimpleListWalker):
+			self.body.contents.append(widget)
+		else:
+			raise Exception("Method only supported for SimpleListWalker")
+
+class PatchedPile(urwid.Pile):
+
+	_parent = None
+
+	def __init__(self, widget_list, focus_item=0):
+		# No need to call the constructor
+		self.widget_list = []
+		self.item_types  = []
+		map(self.add_widget, widget_list)
+		self.set_focus(focus_item)
+		self.pref_col = None
+
+	def add_widget( self, widget ):
+		"""Adds a widget to this pile"""
+		w = widget
+		self.widget_list.append(widget)
+		if type(w) != type(()):
+			self.item_types.append(('weight',1))
+		elif w[0] == 'flow':
+			f, widget = w
+			self.widget_list[i] = widget
+			self.item_types.append((f,None))
+		elif w[0] in ('fixed', 'weight'):
+			f, height, widget = w
+			self.widget_list[i] = widget
+			self.item_types.append((f,height))
+		else:
+			raise PileError, "widget list item invalid %s" % `w`
+
+	def remove_widget( self, widget ):
+		"""Removes a widget from this pile"""
+		if type(widget) != type(()): widget = widget[1]
+		i = self.widget_list.index(widget)
+		del self.widget_list[i]
+		del self.item_types[i]
+
+	def remove_widgets( self ):
+		"""Removes all widgets from this pile"""
+		self.widget_list = []
+		self.item_types  = []
+
+class PatchedColumns(urwid.Columns):
+	_parent = None
+	def set_focus(self, widget):
+		"""Set the column in focus with a widget in self.widget_list."""
+		if type(widget) != int:
+			position = self.widget_list.index(widget)
+		else:
+			position = widget
+		self.focus_col = position
+
+PatchedPile._parent    = urwid.Pile
+PatchedListBox._parent = urwid.ListBox
+PatchedColumns._parent = urwid.Columns
+urwid.Pile    = PatchedPile
+urwid.ListBox = PatchedListBox
+urwid.Columns = PatchedColumns
+
+# ------------------------------------------------------------------------------
+#
 # UI CLASS
 #
 # ------------------------------------------------------------------------------

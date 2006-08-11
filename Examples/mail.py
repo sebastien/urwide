@@ -21,14 +21,16 @@ CONSOLE_UI = """\
 Hdr URWIDE Mail Editor
 ::: @shade
 
-Edt  From          [%s]          #from         ?FROM
-Edt  To            [List of recipients]    #to           ?TO
+Edt   From          [%s]          #from         ?FROM
+Edt   To            [List of recipients]    #to           ?TO
 ---
-Edt  Subject       [Subject]               #subject      ?SUBJECT
+Edt   Subject       [Subject]               #subject      ?SUBJECT
 ---
+
 Box  border=1
 Edt  [Content]     #content &edit=changeContent multiline=True
 End
+
 ===
 GFl
 Btn [Cancel]                        #btn_cancel &press=cancel
