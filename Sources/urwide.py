@@ -8,13 +8,13 @@
 # License   : Lesser GNU Public License  http://www.gnu.org/licenses/lgpl.html>
 # -----------------------------------------------------------------------------
 # Creation  : 14-Jul-2006
-# Last mod  : 20-Jul-2006
+# Last mod  : 11-Aug-2006
 # -----------------------------------------------------------------------------
 
 import string, re
 import urwid, urwid.raw_display
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 __doc__ = """\
 URWIDE provides a nice wrapper around the awesome URWID Python library. It
 enables the creation of complex console user-interfaces, using an easy to use
@@ -268,27 +268,58 @@ class UI:
 					res = self._handle("keyPress", topwidget, key)
 				except UIRuntimeError:
 					res = False
-			if res == False:
+			if res is False:
 				topwidget.keypress(self._currentSize, key)
+
+	def getFocused( self ):
+		raise Exception("Must be implemente by subclasses")
+
+	def focusNext( self ):
+		raise Exception("Must be implemente by subclasses")
+
+	def focusPrevious( self ):
+		raise Exception("Must be implemente by subclasses")
 
 	def getToplevel( self ):
 		raise Exception("Must be implemente by subclasses")
+
+	def isEditable( self, widget ):
+		if   isinstance(widget, urwid.Edit): return True
+		if   isinstance(widget, urwid.IntEdit): return True
+		return False
+
+	def isFocusable( self, widget ):
+		if   isinstance(widget, urwid.Edit): return True
+		if   isinstance(widget, urwid.IntEdit): return True
+		if   isinstance(widget, urwid.Button): return True
+		if   isinstance(widget, urwid.CheckBox): return True
+		if   isinstance(widget, urwid.RadioButton): return True
+		return False
 
 	# PARSING WIDGETS STACK MANAGEMENT
 	# -------------------------------------------------------------------------
 
 	def _add( self, widget ):
+		"""Adds the given widget to the @_content list. This list will be
+		added to the current parent widget when the UI is finished or when an
+		`End` block is encountered (see @_push and @_pop)"""
 		# Piles cannot be created with [] as content, so we fill them with the
 		# EMPTY widget, which is replaced whenever we add something
 		if self._content == [self.EMPTY]: self._content[0] = widget
 		self._content.append(widget)
 
 	def _push( self, endCallback, ui=None, args=(), kwargs={} ):
+		"""Pushes the given arguments (@ui, @args, @kwargs) on the stack,
+		together with the @endCallback which will be invoked with the given
+		arguments when an `End` block will be encountered (and that a @_pop is
+		triggered)."""
 		self._stack.append((self._content, endCallback, ui, args, kwargs))
 		self._content = []
 		return self._content
 
 	def _pop( self ):
+		"""Pops out the widget on the top of the stack and invokes the
+		_callback_ previously associated with it (using @_push)."""
 		previous_content = self._content
 		self._content, end_callback, end_ui, end_args, end_kwargs = self._stack.pop()
 		return previous_content, end_callback, end_ui, end_args, end_kwargs
@@ -417,6 +448,24 @@ class UI:
 		return res
 
 	def _createWidget( self, widgetClass, *args, **kwargs ):
+		"""Creates the given widget by instanciating @widgetClass with the given
+		args and kwargs. Basically, this is equivalent to
+
+		>	return widgetClass(*kwargs['args'], **kwargs['kwargs'])
+
+		Excepted that the widget is wrapped in an `AttrWrap` object, with the
+		proper attributes. Also, the given @kwargs are preprocessed before being
+		forwarded to the widget:
+
+		 - `data` is the text data describing ui attributes, constructor args
+		   and kwargs (in the same format as the text UI description)
+
+		 - `ui`, `args` and `kwargs` allow to pass preprocessed data to the
+		   constructor.
+
+		In all cases, if you want to pass args and kwargs, you should
+		explicitely use the `args` and `kwargs` arguments. I know that this is a
+		bit confusing..."""
 		_data = _ui = _args = _kwargs = None
 		for arg, value in kwargs.items():
 			if   arg == "data":   _data = value
@@ -497,6 +546,20 @@ class UI:
 	def _parseDvd( self, data ):
 		ui, args, kwargs = self._parseAttributes(data[3:])
 		self._add(self._createWidget(urwid.Divider, data, ui=ui, args=args, kwargs=kwargs))
+
+	def _parseBox( self, data ):
+		def end( content, ui=None, **kwargs ):
+			if not content: content = [self.EMPTY]
+			if len(content) == 1: w = content[0]
+			else: w = self._createWidget(urwid.Pile, content)
+			border = kwargs.get('border') or 1
+			w = self._createWidget(urwid.Padding, w, ('fixed left', border), ('fixed right', border) )
+			# TODO: Filler does not work
+			# w = self._createWidget(urwid.Filler, w, ('fixed top', border), ('fixed bottom', border) )
+			# w = urwid.Filler(w,  ('fixed top', 1),  ('fixed bottom',1))
+			self._add(w)
+		ui, args, kwargs = self._parseAttributes(data)
+		self._push(end, ui=ui, args=args, kwargs=kwargs)
 
 	RE_EDT = re.compile("([^\[]*)\[([^\]]+)\]")
 	def _parseEdt( self, data ):
@@ -620,24 +683,16 @@ class Console(UI):
 		old_focused = None
 		while focused != old_focused:
 			old_focused = focused
+			# There are some instances that are not focuable
 			if isinstance(focused, urwid.AttrWrap):
+				if focused.w: focused = focused.w
+			if isinstance(focused, urwid.Padding):
+				if focused.w: focused = focused.w
+			if isinstance(focused, urwid.Filler):
 				if focused.w: focused = focused.w
 			if hasattr(focused, "get_focus"):
 				if focused.get_focus(): focused = focused.get_focus()
 		return focused
-	
-	def isEditable( self, widget ):
-		if   isinstance(widget, urwid.Edit): return True
-		if   isinstance(widget, urwid.IntEdit): return True
-		return False
-
-	def isFocusable( self, widget ):
-		if   isinstance(widget, urwid.Edit): return True
-		if   isinstance(widget, urwid.IntEdit): return True
-		if   isinstance(widget, urwid.Button): return True
-		if   isinstance(widget, urwid.CheckBox): return True
-		if   isinstance(widget, urwid.RadioButton): return True
-		return False
 
 	def focusNext( self ):
 		focused = self._listbox.get_focus()[1] + 1
@@ -819,11 +874,12 @@ class Dialog(UI):
 		assert self._view == None
 		content = []
 		if self._headertext:
-			content.append(style(urwid.Text(self._headerText), {'style':(self._style +'.header', "dialog.header", 'header')}))
+			content.append(style(urwid.Text(self._headertext), {'style':(self._style +'.header', "dialog.header", 'header')}))
 			content.append(urwid.Text(""))
 			content.append(urwid.Divider("_"))
 		content.extend(self.parseUI(uitext))
 		w = style(urwid.ListBox(content), {'style':(self._style +'.content', "dialog.content", self._style)})
+		# We wrap the dialog into a box
 		w = urwid.Padding(w, ('fixed left', 1), ('fixed right', 1))
 		#w = urwid.Filler(w,  ('fixed top', 1),  ('fixed bottom',1))
 		w = style(w,  {'style':(self._style+".body", "dialog.body", self._style)} )

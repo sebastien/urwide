@@ -1,7 +1,7 @@
 == URWIDE
 == An easy to use extension to URWID
 -- Author: Sébastien Pierre <sebastien@xprima.com>
--- Date: 17-Jul-2006
+-- Date: 11-Aug-2006
 
 Introduction
 ============
@@ -161,10 +161,15 @@ UI Description Language
 Supported Widgets
 =================
 
+    URWIDE tries to support most used URWID widgets, and also introduces _pseudo
+    widgets_ that facilitate the specification of your application layout.
+
     Blank
     -----
 
     >   
+
+    A blank widget is simply an _empty line_ within the UI description.
 
     Divider
     -------
@@ -172,6 +177,14 @@ Supported Widgets
     >   ---
     >   ===
     >   :::
+
+    These three forms create dividers composed of respectively `-`, `=` and `:`
+    characters. In case you will want a particular pattern in your divider, you
+    can user the following form:
+
+    >   Dvd ~-~-
+
+    Which will make you a divider composed of `~-~-`.
 
 
     Text
@@ -194,29 +207,47 @@ Supported Widgets
     Pile
     ----
 
+    >   Ple
+    >   ...
+    >   End
+
     Gridflow
     --------
 
     >   Gfl 
+    >   ...
+    >   End
+
+    Box
+    ---
+
+    >   Box border=1
+    >   ...
+    >   End
+
+    Boxes allow to draw a border around a widget. You can simply indicate the
+    size of the border using the `border` attribute.
 
     Summary
     -------
   
     == Supported Widgets
     ==========================================================================
-    *CODE* || *WIDGET*      ||*TYPE*
+    *CODE* || *WIDGET*           ||*TYPE*
     ==========================================================================
-    `Txt`  || Text          || widget
+    `Txt`  || Text               || widget
     --------------------------------------------------------------------------
-    `Edt`  || Edit          || widget
+    `Edt`  || Edit               || widget
     --------------------------------------------------------------------------
-    `Btn`  || Button        || widget
+    `Btn`  || Button             || widget
     --------------------------------------------------------------------------
-    `Dvd`  || Divider       || widget
+    `Dvd`  || Divider            || widget
     --------------------------------------------------------------------------
-    `Ple`  || Pile          || container
+    `Ple`  || Pile               || container
     --------------------------------------------------------------------------
-    `GFl`  || GridFlow      || container
+    `GFl`  || GridFlow           || container
+    --------------------------------------------------------------------------
+    `Box`  || Box (not in URWID) || container
     ==========================================================================
 
 

@@ -26,7 +26,9 @@ Edt  To            [List of recipients]    #to           ?TO
 ---
 Edt  Subject       [Subject]               #subject      ?SUBJECT
 ---
+Box  border=1
 Edt  [Content]     #content &edit=changeContent multiline=True
+End
 ===
 GFl
 Btn [Cancel]                        #btn_cancel &press=cancel
