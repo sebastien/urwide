@@ -729,6 +729,7 @@ class Console(UI):
 		self._footertext  = ""
 		self.isRunning    = False
 		self.endMessage   = ""
+		self.endStatus    = 1
 
 	# USER INTERACTION API
 	# -------------------------------------------------------------------------
@@ -819,6 +820,7 @@ class Console(UI):
 		self._ui.run_wrapper( self.run )
 		if self.endMessage:
 			print self.endMessage
+		return self.endStatus
 
 	def run( self ):
 		#self._ui.set_mouse_tracking()
@@ -827,9 +829,10 @@ class Console(UI):
 		while self.isRunning:
 			self.loop()
 
-	def end( self, msg=None ):
+	def end( self, msg=None, status=1 ):
 		self.isRunning = False
 		self.endMessage = msg
+		self.endStatus  = status
 
 	def loop( self ):
 		"""This is the main URWID loop, where the event processing and
