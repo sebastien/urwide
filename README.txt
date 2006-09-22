@@ -1,16 +1,15 @@
 == URWIDE
 == An easy to use extension to URWID
 -- Author: Sébastien Pierre <sebastien@xprima.com>
--- Date: 11-Aug-2006
+-- Date: 22-Sep-2006
 
 Introduction
 ============
 
-    [URWID][1] is a very powerful library that allows to write command-line interfaces
-    in the [Python][2] language.
-
-    While URWID is very powerful, it is quite low-level compared to existing UI
-    toolkits, which can make development of more advanced user interface a bit difficult.
+    [URWID][1] is a  powerful library that allows to write command-line
+    interfaces in the [Python][2] language. While URWID is very powerful, it is
+    quite low-level compared to existing UI toolkits, which can make development
+    of more advanced user interface a bit difficult.
 
     The main idea behing URWIDE is to extend URWID with a set of functions that
     allow to *write an URWID application with less code*, and that helps you in
@@ -167,7 +166,7 @@ Supported Widgets
     Blank
     -----
 
-    >   
+    >     
 
     A blank widget is simply an _empty line_ within the UI description.
 

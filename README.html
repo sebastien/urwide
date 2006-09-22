@@ -1,0 +1,332 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" />
+<script type="text/javascript">
+
+function init()
+{
+}
+
+function kiwi_toggleSection(e)
+{
+	var target = e.target;
+	var parent = target.parentNode.parentNode;
+	for ( var i=0 ; i<parent.childNodes.length ; i++ )
+	{
+		var child = parent.childNodes[i];
+		if ( child.getAttribute("class") && child.getAttribute("class").indexOf("level",0)==0 )
+		{
+			if ( child.style.display == "block" )
+			{
+				child.style.display = "none";
+				parent.setAttribute("closed", "true")
+			}
+			else
+			{
+				child.style.display = "block";
+				parent.setAttribute("closed", "false")
+			}
+		}
+	}
+}
+</script>
+<title>Urwide</title>
+<style><!-- 
+body {
+	margin-left: 10%;
+	margin-right: 10%;
+	padding: 20pt;
+	padding-top: 10pt;
+	background: rgb(255,255,255);
+	font:  9pt/13pt "Lucida Grande",Lucida,sans-serif;
+	font:  9.5pt/12pt sans-serif;
+	color: rgb(80,80,80);
+}
+
+table tr td {
+	font:  8pt/12pt "Lucida Grande",Lucida,sans-serif;
+}
+
+h1, h2, h3, h4 {
+	font-family: "Trebuchet MS",sans-serif;
+	color: rgb(22, 130, 178);
+	font-weight: normal;
+	padding-top: 0.5em;
+	cursor: pointer;
+}
+
+hr {
+	color: rgb(150, 220, 238);
+	background: rgb(150, 220, 238);
+	height: 1px;
+	border: 0;
+}
+
+
+b {
+	color: rgb(22,130,178);
+}
+
+strong {
+	color: rgb(103,183,0);
+}
+
+
+a:link, a:active, a:visited {
+	color: rgb(22,130,178);
+	text-decoration: none;
+}
+
+a:hover {
+	text-decoration: none;
+	background-color: #dbecf4;
+}
+
+aimg {
+	border: 0;
+}
+
+#header, #footer {
+	font-size: 7pt;
+	clear: both;
+	width: 100%;
+	color: rgb(177,208,223);
+}
+
+#content {
+	text-align: left;
+}
+
+
+#footer {
+	padding-top:  30pt;
+	text-align: right;
+}
+
+/*  Kiwi-specific  */
+
+.title {
+	margin-bottom: 0;
+}
+
+#meta {
+	width: 100%;
+	padding: 5pt;
+	margin-bottom:  2em;
+	border-top:  1px solid rgb(150, 220, 238);
+	background-color: rgb(250,250,250);
+}
+
+#meta tr td {
+	color: rgb(22, 130, 178);
+}
+
+#meta tr td.name {
+	font-weight: bold;
+}
+
+#content h1, #content h2{
+	padding-bottom: 5pt;
+	border-bottom:  1px dotted rgb(150, 220, 238);
+}
+
+#content h1 {
+	font-size: 1.5em;
+	font-weight: normal;
+	padding-top: 1.5em;
+	padding-bottom: 0.5em;
+}
+
+#content h2 {
+	font-size: 1.3em;
+}
+
+#content h3 {
+	font-size: 1.1em;
+}
+
+#content pre {
+	padding: 5pt;
+	border-left:  1px solid rgb(150, 220, 238);
+	padding-left: 20pt;
+	background-color: rgb(250,250,250);
+	font-size: 80%;
+	color: rgb(143, 160, 168);
+}
+
+#content code {
+	font-size: 80%;
+	color: rgb(143, 160, 168);
+}
+
+#content dt {
+	color: rgb(22,130,178);
+	font-weight: bold;
+}
+
+#content dd {
+	border-left:  1px solid rgb(150, 220, 238);
+	padding-left: 20pt;
+}
+
+#content dd pre {
+	border-left: 0px;
+}
+
+#content ul li {
+	padding-bottom: 0.5em;
+}
+
+#content table {
+	border:  1px solid rgb(150, 220, 238);
+	padding: 5pt;
+}
+
+#content table caption {
+	font-family: serif;
+	padding-top: 1em;
+	padding-bottom: 0.5em;
+	font-style: italic;
+	font-size: 90%;
+	color: rgb(22, 130, 178);
+}
+
+#content table tbody {
+}
+
+#content table tr {
+	margin: 0;
+}
+
+#content table tr td {
+	margin: 0;
+	padding: 0px;
+	padding-right: 5pt;
+	background-color: rgb(250,250,250);
+}
+
+#content table tr.odd td {
+	background-color: rgb(240,240,240);
+}
+
+#content .term {
+	color: rgb(22, 130, 178);
+	border-bottom:  1px solid rgb(150, 220, 238);
+}
+
+#content .quote {
+	font-style: italic;
+	color: rgb(120, 120, 120);
+}
+
+#content .citation {
+	font-style: italic;
+	color: rgb(120, 120, 120);
+}
+
+#content div[class^="ann"] {
+	margin-top: 5pt;
+	margin-bottom: 5pt;
+	padding: 5pt;
+	padding-left: 20pt;
+	color: rgb(100, 100, 100);
+	font-size: 0.8em;
+}
+
+#content div[class^="ann"] .title {
+	font-weight: bold;
+}
+
+#content .annNote {
+	border-left:  1px solid rgb(103,183,0);
+	margin-top: 5pt;
+	margin-bottom: 5pt;
+	padding: 5pt;
+	padding-left: 20pt;
+	background: #fffbe4;
+	color: rgb(100, 100, 100);
+	font-size: 0.8em;
+}
+
+#content .annNote .title {
+	font-weight: bold;
+	display: none;
+}
+
+#references {
+	font:  8pt/12pt "Lucida Grande",Lucida,sans-serif;
+	margin-top: 10pt;
+	padding: 5pt;
+	border-top:  1px solid rgb(150, 220, 238);
+	background-color: rgb(250,250,250);
+	color: rgb(200, 200, 200);
+	font-size: 8pt;
+}
+#references a:link, #references a:active, #references a:visited {
+	color: rgb(150,150,150);
+}
+
+#references .entry {
+	padding-top: 5pt;
+	clear: both;
+}
+
+#references .entry .name {
+	float: left;
+	font-weight: bold;
+	padding-right: 5pt;
+}
+
+#references .entry .content {
+	text-align: right;
+}
+
+
+
+ --></style>
+</head>
+<body onload="init()">
+<div
+	class="title"><h1>Urwide</h1><h2>An Easy To Use Extension To Urwid</h2></div><table id='meta'><tr><td width='0px' class='name'>Author</td><td width='100%' class='value'>Sébastien Pierre &lt;sebastien@xprima.com&gt;</td></tr><tr><td width='0px' class='name'>Date</td><td width='100%' class='value'>17-Jul-2005</td></tr></table>
+ <div id='content'><div class="section"><a class="link" onclick="kiwi_toggleSection(event);"><h1 class="heading">Introduction</h1></a><div class="level1"><p><a href="#1">URWID</a> is a very powerful library that allows to write command-line interfaces in the <a href="#2">Python</a> language.</p><p>While URWID is very powerful, it is quite low-level compared to existing UI toolkits, which can make development of more advanced user interface a bit difficult.</p><p>The main idea behing URWIDE is to extend URWID with a set of functions that allow to <b>write an URWID application with less code</b>, and that helps you in common tasks involved in writing a UI.</p><p>Currently, URWIDE offers you the following features:</p><ul><li>Natural text-based description of your UI </li><li>Event support (key, focus, press, edit) </li><li>Collections of strings (for i18n) </li><li>Dialog support</li></ul><p>To give you an idea of what URWIDE can provide, here is a very simple <code>helloworld.py</code> example:</p><pre>import urwide
+CONSOLE_STYLE = """
+Frame         : Dg,  _, SO
+header        : WH, DC, BO
+"""
+CONSOLE_UI = """\
+Hdr URWIDE Hello world
+___
+
+Txt Hello World !                     args:#txt_hello
+GFl
+Btn [Hello !]                         &amp;press=hello
+Btn [Bye   !]                         &amp;press=bye
+End
+"""
+class Handler(urwide.Handler):
+    def onHello( self, button ):
+        self.ui.widgets.txt_hello.set_text("You said hello !")
+    def onBye( self, button ):
+        self.ui.end("bye !")
+urwide.Console().create(CONSOLE_STYLE, CONSOLE_UI, Handler()).main()</pre></div></div><div class="section"><a class="link" onclick="kiwi_toggleSection(event);"><h1 class="heading">UI generation</h1></a><div class="level1"><p>URWIDE allows to describe a user interface using a very simple line-oriented language. You can define a complete UI in just a few lines. This description allows you to:</p><ul><li>Identify your widgets with a unique name </li><li>Associate detailed information and tooltip </li><li>Bind style information to your widgets </li><li>Bind event handlers</li></ul><p>The description syntax is very simple, and simply consists of a set of lines of the following form:</p><pre>CLS DATA? [ID|STYLE|INFO|EVENT]* [ARGUMENTS]</pre><p>as an example, here is the definition of a button with <code>Click me!</code> as label, which will be available as <code>btn_click</code>, displayed using the <code>clickButton</code> style, displaying the <code>CLICK</code> tooltip when focused, and calling the <code>clicked</code> callback when pressed :</p><pre>Btn [Click me!] #btn_click @clickButton !CLICK &amp;press=clicked</pre><p>To sum up the available attributes:</p><ul><li><span class='term'>CLS</span> is a three letter code that corresponds to the widget code </li><li><span class='term'>DATA</span> is a widget-specific text content </li><li><span class='term'>ID</span> sets the identifier of the widget </li><li><span class='term'>STYLE</span> sets the style class of the widget </li><li><span class='term'>EVENT</span> defines an event handler attached to the widget </li><li><span class='term'>INFO</span> defines the widget tooltip and detailed information </li><li><span class='term'>ARGUMENTS</span> defines additional widget attributes</li></ul><dl><dt>Widget identifier</dt><dd> <div id='content'><pre> #id</pre></div></dd><dt>Widget style class</dt><dd> <div id='content'><pre> @style</pre></div></dd><dt>Widget tooltip</dt><dd> <div id='content'><pre> !TEXT</pre></div></dd><dt>Widget info</dt><dd> <div id='content'><pre> ?TEXT</pre></div></dd><dt>Event handling</dt><dd> <div id='content'><pre> &amp;event=method</pre></div></dd><dt>Supported events</dt><dd> <div id='content'><ul><li><span class='term'>focus</span> </li><li><span class='term'>edit</span> </li><li><span class='term'>key</span></li></ul></div></dd><dt>Python arguments</dt><dd> <div id='content'><pre> name=value, name=value, name=value</pre></div></dd><dt>Comments</dt><dd> <div id='content'><pre># This is a comment</pre></div></dd><p>Comments are useful to annotate your URWIDE source code, or to enable/disable parts of it. Comments are simply lines starting with the <code>#</code> character.</p></dl><div class="section"><a class="link" onclick="kiwi_toggleSection(event);"><h2 class="heading">Blocks</h2></a><div class="level2"><pre>Ple
+Txt I am within the above pile
+End</pre><p>or</p><pre>GFl
+Txt Here are buttons
+Btn [previous]
+Btn [next]
+End</pre><table cellpadding="0" cellspacing="0" align="center"><caption>Syntax summary</caption><tbody><tr class='even'><td><b>SYNTAX</b><br /></td><td><b>DESCRIPTION</b><br /></td></tr><tr class='odd'><td><code>#name</code><br /></td><td>Widget name, makes it accessible as <code>ui.widgets.name</code><br /></td></tr><tr class='even'><td><code>@class</code><br /></td><td>Style class associated with the widget.<br /></td></tr><tr class='odd'><td><code>&amp;event=callback</code><br /></td><td>Makes the <code>onCallback</code> method of the <code>ui.handler()</code> react to the <code>event</code> (press, key, edit, focus) when it occurs on the widget.<br /></td></tr><tr class='even'><td><code>!TOOLTIP</code><br /></td><td><code>ui.strings.TOOLTIP</code> or <code>"TOOLTIP"</code> is used as a tooltip for the widget (when it is focused)<br /></td></tr><tr class='odd'><td><code>?INFO</code><br /></td><td><code>ui.strings.INFO</code> or <code>"INFO"</code> is used as information for the widget (when it is focused)<br /></td></tr><tr class='even'><td><code>arg=value, ...</code><br /></td><td>Additional Python arguments that will be passed to the widget constructor (eg. <code>multiline=true</code> for Edit)<br /></td></tr><tr class='odd'><td><code># comment</code><br /></td><td>a comment line that will be ignored when parsing<br /></td></tr></tbody></table></div></div></div></div><div class="section"><a class="link" onclick="kiwi_toggleSection(event);"><h1 class="heading">Supported Widgets</h1></a><div class="level1"><div class="section"><a class="link" onclick="kiwi_toggleSection(event);"><h2 class="heading">Blank</h2></a><div class="level2"><p>&gt;</p></div></div><div class="section"><a class="link" onclick="kiwi_toggleSection(event);"><h2 class="heading">Divider</h2></a><div class="level2"><pre>---
+===
+:::</pre></div></div><div class="section"><a class="link" onclick="kiwi_toggleSection(event);"><h2 class="heading">Text</h2></a><div class="level2"><pre>Txt TEXT
+Txt TEXT args:ARGUMENTS</pre><div class='annNote'><div class='title'>Note</div><div class='content'>
+        Be sure to use the <code>args:</code> prefix to give arguments to the text, because
+        otherwise your arguments will be interpreted as being part of the
+        displayed text.</div></div></div></div><div class="section"><a class="link" onclick="kiwi_toggleSection(event);"><h2 class="heading">Button</h2></a><div class="level2"><pre>Btn [LABEL]</pre></div></div><div class="section"><a class="link" onclick="kiwi_toggleSection(event);"><h2 class="heading">Pile</h2></a><div class="level2"></div></div><div class="section"><a class="link" onclick="kiwi_toggleSection(event);"><h2 class="heading">Gridflow</h2></a><div class="level2"><pre>Gfl</pre></div></div><div class="section"><a class="link" onclick="kiwi_toggleSection(event);"><h2 class="heading">Summary</h2></a><div class="level2"><table cellpadding="0" cellspacing="0" align="center"><caption>Supported Widgets</caption><tbody><tr class='even'><td><b>CODE</b><br /></td><td><b>WIDGET</b><br /></td><td><b>TYPE</b><br /></td></tr><tr class='odd'><td><code>Txt</code><br /></td><td>Text<br /></td><td>widget<br /></td></tr><tr class='even'><td><code>Edt</code><br /></td><td>Edit<br /></td><td>widget<br /></td></tr><tr class='odd'><td><code>Btn</code><br /></td><td>Button<br /></td><td>widget<br /></td></tr><tr class='even'><td><code>Dvd</code><br /></td><td>Divider<br /></td><td>widget<br /></td></tr><tr class='odd'><td><code>Ple</code><br /></td><td>Pile<br /></td><td>container<br /></td></tr><tr class='even'><td><code>GFl</code><br /></td><td>GridFlow<br /></td><td>container<br /></td></tr></tbody></table></div></div></div></div><div class="section"><a class="link" onclick="kiwi_toggleSection(event);"><h1 class="heading">Events</h1></a><div class="level1"><p>URWIDE provides support for handling events and binding event handlers to each individual widget. The events currently supported are:</p><ul><li><code>focus</code> (any), which is triggered when the widget received focus </li><li><code>key</code> (any), which is triggered when a key is pressed on a widget </li><li><code>edit</code> (Edit), which is triggered after an Edit was edited </li><li><code>press</code> (Buttons, CheckBox), which is triggered when a button is pressed</li></ul><p>Events are handled by <span class='term'>handlers</span>, which are objects that define methods that implement a particular reaction. For instance, if you have an event named <code>showHelp</code>, you handler class will be like that:</p><pre>class MyHandler(urwide.Handler):
+
+    def onShowHelp( self, widget ):
+        # Do something here</pre><p>And then, if you want to trigger the "<code>showHelp</code>" event when a button is pressed:</p><pre>Btn [Show help] &amp;press=showHelp</pre><p>This will automatically make the binding between the ui and the handler, provided that you register your handler into the ui:</p><pre>ui.handler(MyHandler())</pre></div></div><div class="section"><a class="link" onclick="kiwi_toggleSection(event);"><h1 class="heading">Collections</h1></a><div class="level1"><p>URWIDE will create an instance of the <code>urwide.UI</code> class when given a style (will be presented later) and a UI description. This instance will take care of everything for you, from events to widgets. You will generally only want to access or modify the <code>widgets</code> and <code>strings</code> collections.</p><p>Both collections can be edited by accessing values as attribute. Setting an attribute will add a key within the collection, accessing it will return the bound value, or raise an exception if the value was not found.</p><pre>ui.strings.SOME_TEXT = "This text can be used as a value in a widget"</pre><pre>ui.widgets</pre></div></div><div class="section"><a class="link" onclick="kiwi_toggleSection(event);"><h1 class="heading">Style syntax</h1></a><div class="level1"><pre>[STYLE] : FG, BG, FN</pre><ul><li><span class='term'>STYLE</span> is the name of the style </li><li><span class='term'>FG</span> is the foreground color </li><li><span class='term'>BG</span> is the backgrond color </li><li><span class='term'>FN</span> is the font style</li></ul><p>A style name can be:</p><ul><li><span class='term'>URWID widget name</span> (<code>Edit</code>, <code>Text</code>, etc) </li><li><span class='term'>style name</span> (defined by <code>@style</code> in the widgets list) </li><li><span class='term'>widget id</span>, as defined by the <code>#id</code> of the UI</li></ul><p>Focus styles can be specified by appending <code>*</code> to each style name:</p><pre>Edit        : BL, _, SO
+Edit*       : DM, Lg, SO</pre><p>means that all <code>Edit</code> widgets will have black as color when unfocused, and dark magenta when focused.</p><p>Here is a table that sums up the possible values that can be used to describe the styles. These values are described in the URWID reference for the <a href="http://excess.org/urwid/reference.html#Screen-register_palette_entry">Screen</a> class.</p><table cellpadding="0" cellspacing="0" align="center"><caption>Style values</caption><tbody><tr class='even'><td><b>CODE</b><br /></td><td><b>VALUE</b><br /></td><td><b>FOREGROUND</b><br /></td><td><b>BACKGROUND</b><br /></td><td><b>FONT</b><br /></td></tr><tr class='odd'><td>WH<br /></td><td>white<br /></td><td>yes<br /></td><td>no<br /></td><td> <div id='content'></div></td></tr><tr class='even'><td>BL<br /></td><td>black<br /></td><td>no<br /></td><td>yes<br /></td><td> <div id='content'></div></td></tr><tr class='odd'><td>YL<br /></td><td>yellow<br /></td><td>yes<br /></td><td>no<br /></td><td> <div id='content'></div></td></tr><tr class='even'><td>BR<br /></td><td>brown<br /></td><td>yes<br /></td><td>no<br /></td><td> <div id='content'></div></td></tr><tr class='odd'><td>DG<br /></td><td>dark red<br /></td><td>no<br /></td><td>yes<br /></td><td> <div id='content'></div></td></tr><tr class='even'><td>DB<br /></td><td>dark blue<br /></td><td>yes<br /></td><td>yes<br /></td><td> <div id='content'></div></td></tr><tr class='odd'><td>DG<br /></td><td>dark green<br /></td><td>yes<br /></td><td>yes<br /></td><td> <div id='content'></div></td></tr><tr class='even'><td>DM<br /></td><td>dark magenta<br /></td><td>yes<br /></td><td>yes<br /></td><td> <div id='content'></div></td></tr><tr class='odd'><td>DC<br /></td><td>dark cyan<br /></td><td>yes<br /></td><td>yes<br /></td><td> <div id='content'></div></td></tr><tr class='even'><td>Dg<br /></td><td>dark gray<br /></td><td>yes<br /></td><td>no<br /></td><td> <div id='content'></div></td></tr><tr class='odd'><td>LR<br /></td><td>light red<br /></td><td>yes<br /></td><td>no<br /></td><td> <div id='content'></div></td></tr><tr class='even'><td>LG<br /></td><td>light green<br /></td><td>yes<br /></td><td>no<br /></td><td> <div id='content'></div></td></tr><tr class='odd'><td>LB<br /></td><td>light blue<br /></td><td>yes<br /></td><td>no<br /></td><td> <div id='content'></div></td></tr><tr class='even'><td>LM<br /></td><td>light magenta<br /></td><td>yes<br /></td><td>no<br /></td><td> <div id='content'></div></td></tr><tr class='odd'><td>LC<br /></td><td>light cyan<br /></td><td>yes<br /></td><td>no<br /></td><td> <div id='content'></div></td></tr><tr class='even'><td>Lg<br /></td><td>light gray<br /></td><td>yes<br /></td><td>yes<br /></td><td> <div id='content'></div></td></tr><tr class='odd'><td>BO<br /></td><td>bold<br /></td><td> <div id='content'></div></td><td> <div id='content'></div></td><td>yes<br /></td></tr><tr class='even'><td>UL<br /></td><td>underline<br /></td><td> <div id='content'></div></td><td> <div id='content'></div></td><td>yes<br /></td></tr><tr class='odd'><td>SO<br /></td><td>standout<br /></td><td> <div id='content'></div></td><td> <div id='content'></div></td><td>yes<br /></td></tr><tr class='even'><td>_<br /></td><td>default<br /></td><td>yes<br /></td><td>yes<br /></td><td>yes<br /></td></tr></tbody></table></div></div></div>
+<div id="references"><div class="entry"><div class="name"><a name="1">1</a></div><div class="content"> URWID by Ian Ward, <a href="http://www.excess.org/urwid">http://www.excess.org/urwid</a></div></div><div class="entry"><div class="name"><a name="2">2</a></div><div class="content"> Python Language (2.4), <a href="http://www.python.org">http://www.python.org</a></div></div></div>
+</body>
+</html>
