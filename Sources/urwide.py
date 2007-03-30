@@ -11,7 +11,7 @@
 # Last mod  : 30-Mar-2007
 # -----------------------------------------------------------------------------
 
-import string, re
+import sys, string, re, curses
 import urwid, urwid.raw_display, urwid.curses_display
 
 __version__ = "0.1.2"
@@ -823,7 +823,10 @@ class Console(UI):
 		self._ui.clear()
 		if self._palette: self._ui.register_palette(self._palette)
 		self._ui.run_wrapper( self.run )
-		self._ui.clear()
+		# We clear the screen (I know, I should use URWID, but that was the
+		# quickest way I found)
+		curses.setupterm()
+		sys.stdout.write(curses.tigetstr('clear'))
 		if self.endMessage:
 			print self.endMessage
 		return self.endStatus
