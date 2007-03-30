@@ -1,7 +1,7 @@
 == URWIDE
 == An easy to use extension to URWID
--- Author: Sébastien Pierre <sebastien@xprima.com>
--- Date: 22-Sep-2006
+-- Author: Sébastien Pierre <sebastien@type-z.org>
+-- Date: 30-Mar-2007
 
 Introduction
 ============
@@ -295,6 +295,13 @@ Collections
     >   ui.strings.SOME_TEXT = "This text can be used as a value in a widget"
 
     >   ui.widgets
+
+
+API
+===
+
+    1. The 'Console' class
+    ----------------------
 
 
 Style syntax

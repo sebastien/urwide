@@ -4,17 +4,17 @@
 # -----------------------------------------------------------------------------
 # Project   : URWIDE - Extended URWID
 # -----------------------------------------------------------------------------
-# Author    : Sébastien Pierre                           <sebastien@xprima.com>
+# Author    : Sébastien Pierre                           <sebastien@type-z.org>
 # License   : Lesser GNU Public License  http://www.gnu.org/licenses/lgpl.html>
 # -----------------------------------------------------------------------------
 # Creation  : 14-Jul-2006
-# Last mod  : 11-Aug-2006
+# Last mod  : 30-Mar-2007
 # -----------------------------------------------------------------------------
 
 import string, re
-import urwid, urwid.raw_display
+import urwid, urwid.raw_display, urwid.curses_display
 
-__version__ = "0.1.1"
+__version__ = "0.1.2"
 __doc__ = """\
 URWIDE provides a nice wrapper around the awesome URWID Python library. It
 enables the creation of complex console user-interfaces, using an easy to use
@@ -810,14 +810,20 @@ class Console(UI):
 		else:
 			return self._frame
 
+	def getCurrentSize( self ):
+		"""Returns the current size for this UI as a couple."""
+		return self._currentSize
+		
 	# URWID EVENT-LOOP
 	# -------------------------------------------------------------------------
 
 	def main( self ):
 		#self._ui = urwid.curses_display.Screen()
 		self._ui  = urwid.raw_display.Screen()
+		self._ui.clear()
 		if self._palette: self._ui.register_palette(self._palette)
 		self._ui.run_wrapper( self.run )
+		self._ui.clear()
 		if self.endMessage:
 			print self.endMessage
 		return self.endStatus
@@ -827,6 +833,7 @@ class Console(UI):
 		self._currentSize = self._ui.get_cols_rows()
 		self.isRunning    = True
 		while self.isRunning:
+			self._currentSize = self._ui.get_cols_rows()
 			self.loop()
 
 	def end( self, msg=None, status=1 ):

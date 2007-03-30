@@ -1,0 +1,6 @@
+== URWIDE TODO
+
+	[ ] Support for textencoding and termencoding, so that the text is displayed
+	    properly.
+	[ ] Add proper mouse support
+	[ ] See why the curses backend has problems
