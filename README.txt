@@ -109,11 +109,11 @@ UI Description Language
 
     Python arguments::
 
-    >    name=value, name=value, name=value
+        >    name=value, name=value, name=value
 
     Comments::
 
-    >   # This is a comment
+        >    # This is a comment
 
     Comments are useful to annotate your URWIDE source code, or to enable/disable
     parts of it. Comments are simply lines starting with the `#` character.
@@ -166,7 +166,7 @@ Supported Widgets
     Blank
     -----
 
-    >     
+    >    EOL
 
     A blank widget is simply an _empty line_ within the UI description.
 
@@ -191,6 +191,11 @@ Supported Widgets
 
     >   Txt TEXT
     >   Txt TEXT args:ARGUMENTS
+    
+    Examples
+
+    >   Txt Hello, I'm a text 
+    >   Txt Hello, I'm a text args:align='left'
 
         Note _________________________________________________________________
         Be sure to use the `args:` prefix to give arguments to the text, because
@@ -202,6 +207,25 @@ Supported Widgets
 
     >   Btn [LABEL]
 
+    Choice
+    ------
+
+    >   Chc [ :group] I am an unselected option
+    >   Chc [X:group] I am a selected option
+    >   Chc [X:other] I am a selected option from the 'other' group
+    >   Chc [ :group] I am an unselected option args:#my_choice
+
+    A choice is composed of:
+
+    - Its _state_ and _group_ represented by the leading '[S:GROUP]', where 'S'
+      is either ' ' or 'X' and 'GROUP' is any string. Groups are availabled in
+      as 'ui.groups.GROUP' ('ui.groups' is a 'UI.Collection' instance)
+
+    - Its _label_, following the state and group definition. It can be free-form
+      text.
+
+    - The _ui arguments_, optionally following the label, but prefixed by
+      'args:'
 
     Pile
     ----
@@ -227,6 +251,13 @@ Supported Widgets
     Boxes allow to draw a border around a widget. You can simply indicate the
     size of the border using the `border` attribute.
 
+    Columns
+    -------
+
+    >   Col
+    >       ***
+    >   End
+
     Summary
     -------
   
@@ -239,6 +270,8 @@ Supported Widgets
     `Edt`  || Edit               || widget
     --------------------------------------------------------------------------
     `Btn`  || Button             || widget
+    --------------------------------------------------------------------------
+    `Chc`  || RadioButton        || widget
     --------------------------------------------------------------------------
     `Dvd`  || Divider            || widget
     --------------------------------------------------------------------------
@@ -379,6 +412,15 @@ Style syntax
     _      || default       || yes        || yes        || yes
     ==========================================================================
 
+Using dialogs:
+
+    dialog = Dialog()
+    # Don't know why this is necessary, but it doesn't work if it's not there
+    sialog.handler(dialog_handler)
+    self.pushHandler(dialog_handler)
+
+    def dialog_end():
+        self.popHandler()
 
  [1]: URWID by Ian Ward, <http://www.excess.org/urwid>
  [2]: Python Language (2.4), <http://www.python.org>

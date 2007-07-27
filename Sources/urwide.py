@@ -173,7 +173,7 @@ class UI:
 				return super(UI.Collection, self).__getattribute__(name)
 			else:
 				w = self.w_w_content
-				if not w.has_key(name): raise UIRuntimeError("No widget with name: " + name)
+				if not w.has_key(name): raise UIRuntimeError("No widget with name: " + name )
 				return w[name]
 
 		def __setattr__( self, name, value):
@@ -195,10 +195,12 @@ class UI:
 		self._header      = None
 		self._currentSize = None
 		self._widgets     = {}
+		self._groups      = {}
 		self._strings     = {}
 		self._data        = {}
 		self._handlers    = []
 		self.widgets      = UI.Collection(self._widgets)
+		self.groups       = UI.Collection(self._groups)
 		self.strings      = UI.Collection(self._strings)
 		self.data         = UI.Collection(self._data)
 
@@ -209,10 +211,26 @@ class UI:
 		else:
 			return None
 
-	def new( self, widgetClass, *args ):
-		"""Creates a new widget of the given urwid class, and returns it..
-		"""
-		return self._createWidget( widgetClass, *args )
+	def new( self, widgetClass, *args, **kwargs ):
+		"""Creates the given widget by instanciating @widgetClass with the given
+		args and kwargs. Basically, this is equivalent to
+
+		>	return widgetClass(*kwargs['args'], **kwargs['kwargs'])
+
+		Excepted that the widget is wrapped in an `urwid.AttrWrap` object, with the
+		proper attributes. Also, the given @kwargs are preprocessed before being
+		forwarded to the widget:
+
+		 - `data` is the text data describing ui attributes, constructor args
+		   and kwargs (in the same format as the text UI description)
+
+		 - `ui`, `args` and `kwargs` allow to pass preprocessed data to the
+		   constructor.
+
+		In all cases, if you want to pass args and kwargs, you should
+		explicitely use the `args` and `kwargs` arguments. I know that this is a
+		bit confusing..."""
+		return self._createWidget( widgetClass, *args, **kwargs )
 
 	def wrap( self, widget, properties ):
 		"""Wraps the given in the given properties."""
@@ -229,16 +247,19 @@ class UI:
 	# -------------------------------------------------------------------------
 
 	def handler( self, handler = None ):
-		"""Sets/Gets the current event handler"""
+		"""Sets/Gets the current event handler.
+		
+		This modifies the 'handler.ui' and sets it to this ui."""
 		if handler == None:
-			if not  self._handlers: raise UIRuntimeError("No handler defined")
-			return self._handlers[-1]
+			if not  self._handlers: raise UIRuntimeError("No handler defined for: %s" % (self))
+			return self._handlers[-1][0]
 		else:
+			old_ui     = handler.ui
 			handler.ui = self
 			if not self._handlers:
-				self._handlers.append(handler)
+				self._handlers.append((handler, old_ui))
 			else:
-				self._handlers[-1] = handler
+				self._handlers[-1] = (handler, old_ui)
 
 	def responder( self, event ):
 		"""Returns the function that responds to the given event."""
@@ -247,13 +268,15 @@ class UI:
 	def pushHandler( self, handler ):
 		"""Push a new handler on the list of handlers. This handler will handle
 		events until it is popped out or replaced."""
-		self._handlers.append(handler)
-	
+		self._handlers.append((handler, handler.ui))
+		handler.ui = self
+
 	def popHandler( self ):
 		"""Pops the current handler of the list of handlers. The handler will
 		not handle events anymore, while the previous handler will start to
 		handle events."""
-		return self._handlers.pop()
+		handler, ui = self._handlers.pop()
+		handler.ui = ui
 
 	def _handle( self, event_name, widget, *args, **kwargs ):
 		"""Handle the given given event name."""
@@ -265,6 +288,7 @@ class UI:
 			elif hasattr(widget, event_name):
 				getattr(widget, event_name, *args, **kwargs)
 			else:
+				print "HANDLER", handler
 				raise UIRuntimeError("No handler for event: %s in %s" % (event_name, widget))
 		# Otherwise we assume it is a callback
 		else:
@@ -296,10 +320,10 @@ class UI:
 		widget = self.unwrap(widget)
 		widget._urwideOnPress = callback
 
-	def _doPress( self, button ):
+	def _doPress( self, button, *args ):
 		if hasattr(button, "_urwideOnPress"):
 			event_name = button._urwideOnPress
-			self._handle(event_name, button)
+			self._handle(event_name, button, *args)
 		else:
 			raise UIRuntimeError("Widget does not respond to press event: %s" % (button))
 
@@ -329,6 +353,7 @@ class UI:
 		# 4) If no keyPresss handler is defined, the default key_press event is
 		#    handled
 		topwidget = self.getToplevel()
+		# FIXME: Dialogs should prevent processing of events at a lower level
 		if widget:
 			if hasattr(widget, "_urwideOnKey"):
 				event_name = widget._urwideOnKey
@@ -357,16 +382,16 @@ class UI:
 				topwidget.keypress(self._currentSize, key)
 
 	def getFocused( self ):
-		raise Exception("Must be implemente by subclasses")
+		raise Exception("Must be implemented by subclasses")
 
 	def focusNext( self ):
-		raise Exception("Must be implemente by subclasses")
+		raise Exception("Must be implemented by subclasses")
 
 	def focusPrevious( self ):
-		raise Exception("Must be implemente by subclasses")
+		raise Exception("Must be implemented by subclasses")
 
 	def getToplevel( self ):
-		raise Exception("Must be implemente by subclasses")
+		raise Exception("Must be implemented by subclasses")
 
 	def isEditable( self, widget ):
 		if   isinstance(widget, urwid.Edit): return True
@@ -494,6 +519,18 @@ class UI:
 			data = data[match.end():]
 		return ui, data
 
+	def _parseArguments( self, data ):
+		"""Parses the given text data which should be a list of attributes. This
+		returns a dict with the attributes."""
+		assert type(data) in (str, unicode)
+		def as_dict(*args, **kwargs): return args, kwargs
+		res = eval("as_dict(%s)" % (data))
+		try:
+			res = eval("as_dict(%s)" % (data))
+		except:
+			raise SyntaxError("Malformed arguments: " + repr(data))
+		return res
+
 	def hasStyle( self, *styles ):
 		for s in styles:
 			for r in self._palette:
@@ -519,26 +556,13 @@ class UI:
 		else:
 			return widget
 
-	def _parseArguments( self, data ):
-		"""Parses the given text data which should be a list of attributes. This
-		returns a dict with the attributes."""
-		assert type(data) in (str, unicode)
-		def as_dict(*args, **kwargs): return args, kwargs
-		as_dict()
-		res = eval("as_dict(%s)" % (data))
-		try:
-			res = eval("as_dict(%s)" % (data))
-		except:
-			raise SyntaxError("Malformed arguments: " + repr(data))
-		return res
-
 	def _createWidget( self, widgetClass, *args, **kwargs ):
 		"""Creates the given widget by instanciating @widgetClass with the given
 		args and kwargs. Basically, this is equivalent to
 
 		>	return widgetClass(*kwargs['args'], **kwargs['kwargs'])
 
-		Excepted that the widget is wrapped in an `AttrWrap` object, with the
+		Excepted that the widget is wrapped in an `urwid.AttrWrap` object, with the
 		proper attributes. Also, the given @kwargs are preprocessed before being
 		forwarded to the widget:
 
@@ -558,7 +582,8 @@ class UI:
 			elif arg == "args":   _args = value
 			elif arg == "kwargs": _kwargs = value
 			else: raise Exception("Unrecognized optional argument: " + arg)
-		if _data: _ui, _args, _kwargs = self._parseAttributes(_data)
+		if _data:
+			_ui, _args, _kwargs = self._parseAttributes(_data)
 		args = list(args)
 		if _args: args.extend(_args)
 		kwargs = _kwargs or {}
@@ -567,7 +592,7 @@ class UI:
 
 	def _wrapWidget( self, widget, _ui ):
 		"""Wraps the given widget into anotger widget, and applies the various
-		properties listed in the _ui (internal structure)."""
+		properties listed in the '_ui' (internal structure)."""
 		# And now we process the ui information
 		if not _ui: _ui = {}
 		if _ui.has_key("id"):
@@ -576,7 +601,8 @@ class UI:
 		if _ui.get("events"):
 			for event, handler in _ui["events"].items():
 				if   event == "press":
-					if not isinstance(widget, urwid.Button):
+					if not isinstance(widget, urwid.Button)\
+					and not isinstance(widget, urwid.RadioButton):
 						raise UISyntaxError("Press event only applicable to Button: " + repr(widget))
 					widget._urwideOnPress = handler
 				elif event == "edit":
@@ -624,9 +650,27 @@ class UI:
 	RE_BTN = re.compile("\s*\[([^\]]+)\]")
 	def _parseBtn( self, data ):
 		match = self.RE_BTN.match(data)
-		data  = data[match.end():]
 		if not match: raise SyntaxError("Malformed button: " + repr(data))
+		data  = data[match.end():]
 		self._add(self._createWidget(urwid.Button, match.group(1), self._doPress, data=data))
+
+	RE_CHC = re.compile("\s*\[([xX ])\:(\w+)\](.+)")
+	def _parseChc( self, data ):
+		attr, data = self._argsFind(data)
+		# Parses the declaration
+		match = self.RE_CHC.match(data)
+		if not match: raise SyntaxError("Malformed choice: " + repr(data))
+		state = not (match.group(1) == " ")
+		group = group_name = match.group(2).strip()
+		group = self._groups.setdefault(group,[])
+		assert self._groups[group_name] == group
+		assert getattr(self.groups,group_name) == group
+		label = match.group(3)
+		# Parses the attributes
+		ui, args, kwargs = self._parseAttributes(attr)
+		# Creates the widget
+		self._add(self._createWidget(urwid.RadioButton, group, label, state,
+		self._doPress,  ui=ui, args=args, kwargs=kwargs))
 
 	def _parseDvd( self, data ):
 		ui, args, kwargs = self._parseAttributes(data[3:])
@@ -813,11 +857,13 @@ class Console(UI):
 	def getCurrentSize( self ):
 		"""Returns the current size for this UI as a couple."""
 		return self._currentSize
-		
+
 	# URWID EVENT-LOOP
 	# -------------------------------------------------------------------------
 
 	def main( self ):
+		"""This is the main event-loop. That is what you should invoke to start
+		your application."""
 		#self._ui = urwid.curses_display.Screen()
 		self._ui  = urwid.raw_display.Screen()
 		self._ui.clear()
@@ -832,6 +878,8 @@ class Console(UI):
 		return self.endStatus
 
 	def run( self ):
+		"""Run function to be used by URWID. You should not call it directly,
+		use the 'main' function instead."""
 		#self._ui.set_mouse_tracking()
 		self._currentSize = self._ui.get_cols_rows()
 		self.isRunning    = True
@@ -840,6 +888,8 @@ class Console(UI):
 			self.loop()
 
 	def end( self, msg=None, status=1 ):
+		"""Ends the application, registering the given 'msg' as end message, and
+		returning the given 'status' ('1' by default)."""
 		self.isRunning = False
 		self.endMessage = msg
 		self.endStatus  = status
@@ -885,6 +935,8 @@ class Console(UI):
 			self._doEdit( focused, old_text, focused.get_edit_text(), ensure=False)
 
 	def draw( self ):
+		"""Main loop to draw the console. This takes into account the fact that
+		there may be a dialog to display."""
 		if self._dialog != None:
 			o = urwid.Overlay( self._dialog.view(), self._frame,
 				"center",
@@ -934,16 +986,24 @@ class Console(UI):
 
 class Dialog(UI):
 	"""Utility class to create dialogs that will fit within a console
-	application."""
+	application.
+	
+	See the constructor documentation for more information."""
 
 	PALETTE = """
 	dialog        : BL, Lg, SO
 	dialog.shadow : DB, BL, SO
 	dialog.border : Lg, DB, SO
 	"""
-	def __init__( self, parent, ui, width=40, height=30, style="dialog",
+
+	def __init__( self, parent, ui, width=40, height=-1, style="dialog",
 	header="", palette=""):
+		"""Creates a new dialog that will be attached to the given 'parent'. The
+		user interface is described by the 'ui' string. The dialog 'width' and
+		'height' will indicate the dialog size, when 'height' is '-1', it will
+		be automatically computed from the given 'ui'."""
 		UI.__init__(self)
+		if height == -1: height = ui.count("\n") - 1
 		self._width         = width
 		self._height        = height
 		self._style         = style
@@ -956,16 +1016,23 @@ class Dialog(UI):
 		self.make(ui, palette)
 
 	def width( self ):
+		"""Returns the dialog width"""
 		return self._width
 
 	def height( self ):
+		"""Returns the dialog height"""
 		return self._height
 
 	def view( self ):
+		"""Returns the view attached to this 'Dialog'. The _view_ is created by
+		the 'make' method, and is an 'urwid.Frame' instance."""
 		assert self._view
 		return self._view
 
-	def make( self, uitext, palui ):
+	def make( self, uitext, palui=None ):
+		"""Makes the dialog using a UI description ('uitext') and a style
+		definition for the palette ('palui'), which can be 'None', in which case
+		the value will be 'Dialog.PALETTE'."""
 		if not palui: palui = self.PALETTE
 		self.parseStyle(palui)
 		style = self._styleWidget
@@ -994,9 +1061,11 @@ class Dialog(UI):
 		self._startCallback(self)
 
 	def onStart( self, callback ):
+		"""Registers the callback that will be triggered on dialog start."""
 		self._startCallback = callback
 
 	def onEnd( self, callback ):
+		"""Registers the callback that will be triggered on dialog end."""
 		self._endCallback = callback
 
 	def end( self ):
