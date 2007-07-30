@@ -324,6 +324,8 @@ class UI:
 		if hasattr(button, "_urwideOnPress"):
 			event_name = button._urwideOnPress
 			self._handle(event_name, button, *args)
+		elif isinstance(button, urwid.widget.RadioButton):
+			return False
 		else:
 			raise UIRuntimeError("Widget does not respond to press event: %s" % (button))
 
@@ -1003,7 +1005,7 @@ class Dialog(UI):
 		'height' will indicate the dialog size, when 'height' is '-1', it will
 		be automatically computed from the given 'ui'."""
 		UI.__init__(self)
-		if height == -1: height = ui.count("\n") - 1
+		if height == -1: height = ui.count("\n") + 1
 		self._width         = width
 		self._height        = height
 		self._style         = style
