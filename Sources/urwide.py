@@ -8,7 +8,7 @@
 # License   : Lesser GNU Public License  http://www.gnu.org/licenses/lgpl.html>
 # -----------------------------------------------------------------------------
 # Creation  : 14-Jul-2006
-# Last mod  : 30-Mar-2007
+# Last mod  : 01-Aug-2008
 # -----------------------------------------------------------------------------
 
 import sys, string, re, curses
@@ -288,7 +288,6 @@ class UI:
 			elif hasattr(widget, event_name):
 				getattr(widget, event_name, *args, **kwargs)
 			else:
-				print "HANDLER", handler
 				raise UIRuntimeError("No handler for event: %s in %s" % (event_name, widget))
 		# Otherwise we assume it is a callback
 		else:
