@@ -1,4 +1,4 @@
-import urwide, os
+import urwide, os, sys
 
 # Defines the style and user interface
 CONSOLE_STYLE = """
@@ -56,6 +56,9 @@ class Handler(urwide.Handler):
 	def onChangeContent( self, widget, oldtext, newtext ):
 		if oldtext != newtext:
 			self.ui.info("Email content changed !")
+
+	def exit( self ):
+		sys.exit()
 
 # Defines strings referenced in the UI
 ui                 = urwide.Console()
