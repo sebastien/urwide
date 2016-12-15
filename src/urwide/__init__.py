@@ -1,20 +1,20 @@
 #!/usr/bin/env python
-# Encoding: iso-8859-1
-# vim: tw=80 ts=4 sw=4 noet fenc=latin-1
+# encoding: utf8
 # -----------------------------------------------------------------------------
 # Project   : URWIDE - Extended URWID
 # -----------------------------------------------------------------------------
-# Author    : Sébastien Pierre                           <sebastien@type-z.org>
+# Author    : SÃ©bastien Pierre                     <sebastien.pierre@gmail.com>
 # License   : Lesser GNU Public License  http://www.gnu.org/licenses/lgpl.html>
 # -----------------------------------------------------------------------------
-# Creation  : 14-Jul-2006
-# Last mod  : 01-Aug-2008
+# Creation  : 14-07-2006
+# Last mod  : 15-12-2016
 # -----------------------------------------------------------------------------
 
 import sys, string, re, curses
 import urwid, urwid.raw_display, urwid.curses_display
+from   urwid.widget import FLOW, FIXED, PACK, BOX, GIVEN, WEIGHT, LEFT, RIGHT, RELATIVE, TOP, BOTTOM, CLIP, RELATIVE_100
 
-__version__ = "0.1.2"
+__version__ = "0.2.0"
 __doc__ = """\
 URWIDE provides a nice wrapper around the awesome URWID Python library. It
 enables the creation of complex console user-interfaces, using an easy to use
@@ -55,6 +55,36 @@ RIGHT  = "right"
 LEFT   = "left"
 CENTER = "center"
 
+def add_widget( container, widget, options=None  ):
+	w = widget
+	if isinstance(container, urwid.Pile):
+		# See: urwid.container.py Pile.__init__
+		w = widget
+		if not isinstance(w, tuple):
+			container.contents.append((w, (WEIGHT, 1)))
+		elif w[0] in (FLOW, PACK):
+			f, w = w
+			containe.contents.append((w, (PACK, None)))
+		elif len(w) == 2:
+			height, w = w
+			container.contents.append((w, (GIVEN, height)))
+		elif w[0] == FIXED: # backwards compatibility
+			_ignore, height, w = w
+			container.contents.append((w, (GIVEN, height)))
+		elif w[0] == WEIGHT:
+			f, height, w = w
+			container.contents.append((w, (f, height)))
+		else:
+			raise ValueError("Widget not as expected: {0}".format(widet))
+	else:
+		container.contents.append(widget)
+
+
+def remove_widgets( container ):
+	w = [_ for _ in container.contents]
+	for _ in w:
+		container.contents.remove(_)
+
 # ------------------------------------------------------------------------------
 #
 # URWID Patching
@@ -86,12 +116,14 @@ class PatchedPile(urwid.Pile):
 
 	_parent = None
 
-	def __init__(self, widget_list, focus_item=0):
+	def __init__(self, widget_list, focus_item=None):
 		# No need to call the constructor
+		#super(PatchedPile, self).__init__(widget_list, focus_item)
+		self.__super.__init__(widget_list, focus_item)
 		self.widget_list = []
 		self.item_types  = []
-		map(self.add_widget, widget_list)
-		self.set_focus(focus_item)
+		for _ in widget_list: add_widget(self, _)
+		if focus_item: self.set_focus(focus_item)
 		self.pref_col = None
 
 	def add_widget( self, widget ):
@@ -136,9 +168,9 @@ class PatchedColumns(urwid.Columns):
 PatchedPile._parent    = urwid.Pile
 PatchedListBox._parent = urwid.ListBox
 PatchedColumns._parent = urwid.Columns
-urwid.Pile    = PatchedPile
-urwid.ListBox = PatchedListBox
-urwid.Columns = PatchedColumns
+# urwid.Pile    = PatchedPile
+# urwid.ListBox = PatchedListBox
+# urwid.Columns = PatchedColumns
 
 # ------------------------------------------------------------------------------
 #
@@ -248,7 +280,7 @@ class UI:
 
 	def handler( self, handler = None ):
 		"""Sets/Gets the current event handler.
-		
+
 		This modifies the 'handler.ui' and sets it to this ui."""
 		if handler == None:
 			if not  self._handlers: raise UIRuntimeError("No handler defined for: %s" % (self))
@@ -395,17 +427,18 @@ class UI:
 		raise Exception("Must be implemented by subclasses")
 
 	def isEditable( self, widget ):
-		if   isinstance(widget, urwid.Edit): return True
-		if   isinstance(widget, urwid.IntEdit): return True
-		return False
+		if   isinstance(widget, urwid.Edit):    return True
+		elif isinstance(widget, urwid.IntEdit): return True
+		else:                                   return False
+
 
 	def isFocusable( self, widget ):
-		if   isinstance(widget, urwid.Edit): return True
-		if   isinstance(widget, urwid.IntEdit): return True
-		if   isinstance(widget, urwid.Button): return True
-		if   isinstance(widget, urwid.CheckBox): return True
-		if   isinstance(widget, urwid.RadioButton): return True
-		return False
+		if   isinstance(widget, urwid.Edit):        return True
+		elif isinstance(widget, urwid.IntEdit):     return True
+		elif isinstance(widget, urwid.Button):      return True
+		elif isinstance(widget, urwid.CheckBox):    return True
+		elif isinstance(widget, urwid.RadioButton): return True
+		else:                                       return False
 
 	# PARSING WIDGETS STACK MANAGEMENT
 	# -------------------------------------------------------------------------
@@ -814,14 +847,14 @@ class Console(UI):
 		old_focused = None
 		while focused != old_focused:
 			old_focused = focused
-			# There are some instances that are not focuable
+			# There are some types that are not focuable
 			if isinstance(focused, urwid.AttrWrap):
 				if focused.w: focused = focused.w
-			if isinstance(focused, urwid.Padding):
+			elif isinstance(focused, urwid.Padding):
+				if focused.min_width: focused = focused.min_width
+			elif isinstance(focused, urwid.Filler):
 				if focused.w: focused = focused.w
-			if isinstance(focused, urwid.Filler):
-				if focused.w: focused = focused.w
-			if hasattr(focused, "get_focus"):
+			elif hasattr(focused, "get_focus"):
 				if focused.get_focus(): focused = focused.get_focus()
 		return focused
 
@@ -952,7 +985,7 @@ class Console(UI):
 
 	def _updateFooter(self):
 		"""Updates the frame footer according to info and tooltip"""
-		self._footer.remove_widgets()
+		remove_widgets(self._footer)
 		footer = []
 		if self.tooltip():
 			footer.append(self._styleWidget(urwid.Text(self.tooltip()), {'style':'tooltip'}))
@@ -961,7 +994,8 @@ class Console(UI):
 		if self.footer():
 			footer.append(self._styleWidget(urwid.Text(self.footer()), {'style':'footer'}))
 		if footer:
-			map(self._footer.add_widget, footer)
+			for _ in footer:
+				add_widget(self._footer, _)
 			self._footer.set_focus(0)
 
 	def parseUI( self, text ):
@@ -988,7 +1022,7 @@ class Console(UI):
 class Dialog(UI):
 	"""Utility class to create dialogs that will fit within a console
 	application.
-	
+
 	See the constructor documentation for more information."""
 
 	PALETTE = """
@@ -1123,4 +1157,4 @@ class Handler:
 		else:
 			raise UIRuntimeError("Event not implemented: " + event)
 
-# EOF
+# EOF - vim: tw=80 ts=4 sw=4 noet
