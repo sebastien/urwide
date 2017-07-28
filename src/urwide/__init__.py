@@ -85,6 +85,24 @@ def remove_widgets( container ):
 	for _ in w:
 		container.contents.remove(_)
 
+def original_widgets( widget ):
+	if widget:
+		stack = [widget]
+		if len(stack) > 0 :
+			while hasattr(stack[0], "original_widget"):
+				original = stack[0].original_widget
+				if original not in stack:
+					stack.insert(0,original)
+				else:
+					break
+		return stack
+	else:
+		return []
+
+def original_widget(widget):
+	r = original_widgets(widget)
+	return r[0] if r else widget
+
 # ------------------------------------------------------------------------------
 #
 # URWID Patching
@@ -386,14 +404,18 @@ class UI:
 		# 4) If no keyPresss handler is defined, the default key_press event is
 		#    handled
 		topwidget = self.getToplevel()
+		current_widget = widget
+		# We traverse the `original_widget` in case the widgets are nested.
+		# This allows to get the deepest widget.
+		stack = original_widgets(widget)
 		# FIXME: Dialogs should prevent processing of events at a lower level
-		if widget:
-			if hasattr(widget, "_urwideOnKey"):
-				event_name = widget._urwideOnKey
-				res = self._handle(event_name, widget, key)
-				if res == FORWARD:
-					self._doKeyPress(None, key)
-			elif widget != topwidget:
+		if stack:
+			for widget in stack:
+				if hasattr(widget, "_urwideOnKey"):
+					event_name = widget._urwideOnKey
+					if self._handle(event_name, widget, key):
+						return
+			if current_widget != topwidget and current_widget not in stack:
 				self._doKeyPress(topwidget, key)
 			else:
 				self._doKeyPress(None, key)
@@ -843,7 +865,8 @@ class Console(UI):
 
 	def getFocused( self ):
 		"""Gets the focused widget"""
-		focused     = self._listbox.get_focus()[0]
+		# We get the original widget to focus on
+		focused     = original_widget(self._listbox.get_focus()[0])
 		old_focused = None
 		while focused != old_focused:
 			old_focused = focused
@@ -958,6 +981,8 @@ class Console(UI):
 				# event, button, col, row = key
 				# self.view.mouse_event( self._currentSize, event, button, col, row, focus=True )
 				#pass
+			# NOTE: The key press might actually be send not to the focused
+			# widget but to its original_widget
 			if key == "window resize":
 				self._currentSize = self._ui.get_cols_rows()
 			elif self._dialog:
@@ -1123,7 +1148,8 @@ class Dialog(UI):
 # ------------------------------------------------------------------------------
 
 FORWARD = False
-class Handler:
+
+class Handler(object):
 	"""A handler can be subclassed an can be plugged into a UI to react to a
 	specific set of events. The interest of handlers is that they can be
 	dynamically switched, then making "modal UI" implementation easier.
