@@ -103,6 +103,13 @@ def original_widget(widget):
 	r = original_widgets(widget)
 	return r[0] if r else widget
 
+def original_focus(widget):
+	w = original_widgets(widget)
+	for _ in w:
+		if hasattr(_, "focus"):
+			return _.focus
+	return w[0]
+
 # ------------------------------------------------------------------------------
 #
 # URWID Patching
@@ -373,7 +380,7 @@ class UI:
 		if hasattr(button, "_urwideOnPress"):
 			event_name = button._urwideOnPress
 			self._handle(event_name, button, *args)
-		elif isinstance(button, urwid.widget.RadioButton):
+		elif isinstance(button, urwid.RadioButton):
 			return False
 		else:
 			raise UIRuntimeError("Widget does not respond to press event: %s" % (button))
@@ -722,6 +729,7 @@ class UI:
 		assert self._groups[group_name] == group
 		assert getattr(self.groups,group_name) == group
 		label = match.group(3)
+		print ("CHC", data, attr)
 		# Parses the attributes
 		ui, args, kwargs = self._parseAttributes(attr)
 		# Creates the widget
@@ -1119,6 +1127,7 @@ class Dialog(UI):
 			w = urwid.Frame( w, footer = urwid.AttrWrap(urwid.Text(border),shadow))
 		self._view = w
 		self._startCallback(self)
+		w._urwideOnKey = self.doKeyPress
 
 	def onStart( self, callback ):
 		"""Registers the callback that will be triggered on dialog start."""
@@ -1127,6 +1136,9 @@ class Dialog(UI):
 	def onEnd( self, callback ):
 		"""Registers the callback that will be triggered on dialog end."""
 		self._endCallback = callback
+
+	def doKeyPress( self, widget, key ):
+		self._handle("keyPress", widget, key)
 
 	def end( self ):
 		"""Call this to close the dialog."""
