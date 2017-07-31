@@ -35,7 +35,6 @@ setup(
     url          = "https://github.com/sebastien/urwide",
     package_dir  = { "": "src" },
     modules_dir  = { "": "src" },
-    packages     = ["urwid"],
     py_modules   = ["urwide"],
 )
 
