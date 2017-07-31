@@ -55,6 +55,43 @@ RIGHT  = "right"
 LEFT   = "left"
 CENTER = "center"
 
+
+IS_PYTHON3 = sys.version_info[0] > 2
+
+if IS_PYTHON3:
+	# Python3 only defines str
+	unicode = str
+	long    = int
+else:
+	unicode = unicode
+
+def isString( t ):
+	return isinstance(t, unicode) or isinstance(t, str)
+
+def ensureString( t, encoding="utf8" ):
+	if IS_PYTHON3:
+		return t if isinstance(t, str) else str(t, encoding)
+	else:
+		return t.encode("utf8") if isinstance (t, unicode) else str(t)
+
+def safeEnsureString( t,  encoding="utf8" ):
+	if IS_PYTHON3:
+		return ensureString(t, encoding)
+	else:
+		return t.encode("utf8", "ignore") if isinstance (t, unicode) else str(t)
+
+def ensureUnicode( t, encoding="utf8" ):
+	if IS_PYTHON3:
+		return t if isinstance(t, str) else str(t, encoding)
+	else:
+		return t if isinstance(t, unicode) else str(t).decode(encoding)
+
+def ensureBytes( t, encoding="utf8" ):
+	if IS_PYTHON3:
+		return t if isinstance(t, bytes) else bytes(t, encoding)
+	else:
+		return t
+
 def add_widget( container, widget, options=None  ):
 	w = widget
 	if isinstance(container, urwid.Pile):
@@ -460,7 +497,6 @@ class UI:
 		elif isinstance(widget, urwid.IntEdit): return True
 		else:                                   return False
 
-
 	def isFocusable( self, widget ):
 		if   isinstance(widget, urwid.Edit):        return True
 		elif isinstance(widget, urwid.IntEdit):     return True
@@ -573,7 +609,7 @@ class UI:
 			match = self.RE_UI_ATTRIBUTE.match(data)
 			if not match: break
 			ui_type, ui_value = match.groups()
-			assert type(ui_value) == str
+			assert type(ui_value) in (str, unicode)
 			if   ui_type    == "#": ui["id"]      = ui_value
 			elif ui_type    == "@": ui["style"]   = ui_value
 			elif ui_type    == "?": ui["info"]    = ui_value
@@ -847,21 +883,21 @@ class Console(UI):
 		if text == -1:
 			return self._tooltiptext
 		else:
-			self._tooltiptext = str(text)
+			self._tooltiptext = ensureUnicode(text)
 
 	def info( self, text=-1 ):
 		"""Sets/Gets the current info text."""
 		if text == -1:
 			return self._infotext
 		else:
-			self._infotext = str(text)
+			self._infotext = ensureUnicode(text)
 
 	def footer( self, text=-1 ):
 		"""Sets/Gets the current footer text."""
 		if text == -1:
 			return self._footertext
 		else:
-			self._footertext = str(text)
+			self._footertext = ensureUnicode(text)
 
 	def dialog( self, dialog ):
 		"""Sets the dialog as this UI dialog. All events will be forwarded to
