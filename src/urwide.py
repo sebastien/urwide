@@ -203,7 +203,7 @@ class PatchedPile(urwid.Pile):
 			self.widget_list[i] = widget
 			self.item_types.append((f,height))
 		else:
-			raise PileError, "widget list item invalid %s" % `w`
+			raise PileError("widget list item invalid %s" % (w))
 
 	def remove_widget( self, widget ):
 		"""Removes a widget from this pile"""
@@ -267,14 +267,14 @@ class UI:
 				return super(UI.Collection, self).__getattribute__(name)
 			else:
 				w = self.w_w_content
-				if not w.has_key(name): raise UIRuntimeError("No widget with name: " + name )
+				if name not in w: raise UIRuntimeError("No widget with name: " + name )
 				return w[name]
 
 		def __setattr__( self, name, value):
 			if name.startswith("w_w_"):
 				return super(UI.Collection, self).__setattr__(name, value)
 			else:
-				if self.w_w_content.has_key(name):
+				if name in self.w_w_content:
 					raise SyntaxError("Item name already used: " + name)
 				self.w_w_content[name] = value
 
@@ -561,7 +561,7 @@ class UI:
 		for line in data.split("\n"):
 			if not line.strip(): continue
 			line = line.replace("\t", " ").replace("  ", " ")
-			name, attributes = map(string.strip, line.split(":"))
+			name, attributes = [_.strip() for _ in line.split(":")]
 			res_line = [name]
 			for attribute in attributes.split(","):
 				attribute = attribute.strip()
@@ -590,7 +590,7 @@ class UI:
 		elif name[0] == name[1] == name[2]:
 			self._parseDvd(name + data)
 		else:
-			raise UISyntaxError("Unrecognized widget: " + name)
+			raise UISyntaxError("Unrecognized widget: `" + name + "`")
 
 	def _parseAttributes( self, data ):
 		assert type(data) in (str, unicode)
@@ -639,14 +639,14 @@ class UI:
 	def _styleWidget( self, widget, ui ):
 		"""Wraps the given widget so that it belongs to the given style."""
 		styles = []
-		if ui.has_key("id"): styles.append("#" + ui["id"])
-		if ui.has_key("style"):
+		if "id" in ui: styles.append("#" + ui["id"])
+		if "style" in ui:
 			s = ui["style"]
 			if type(s) in (tuple, list): styles.extend(s)
 			else: styles.append(s)
 		styles.append( widget.__class__.__name__ )
-		unf_styles = filter(lambda s:self.hasStyle(s), styles)
-		foc_styles = filter(lambda s:self.hasStyle(s), map(lambda s:s+"*", styles))
+		unf_styles = [_ for _ in styles if self.hasStyle(_)]
+		foc_styles = [_ + "*" for _ in styles if self.hasStyle(_ + "*")]
 		if unf_styles:
 			if foc_styles:
 				return urwid.AttrWrap(widget, unf_styles[0], foc_styles[0])
@@ -694,7 +694,7 @@ class UI:
 		properties listed in the '_ui' (internal structure)."""
 		# And now we process the ui information
 		if not _ui: _ui = {}
-		if _ui.has_key("id"):
+		if "id" in _ui:
 			setattr(self.widgets, _ui["id"], widget)
 			widget._urwideId = _ui["id"]
 		if _ui.get("events"):
@@ -765,7 +765,6 @@ class UI:
 		assert self._groups[group_name] == group
 		assert getattr(self.groups,group_name) == group
 		label = match.group(3)
-		print ("CHC", data, attr)
 		# Parses the attributes
 		ui, args, kwargs = self._parseAttributes(attr)
 		# Creates the widget
@@ -790,7 +789,7 @@ class UI:
 		ui, args, kwargs = self._parseAttributes(data)
 		self._push(end, ui=ui, args=args, kwargs=kwargs)
 
-	RE_EDT = re.compile("([^\[]*)\[([^\]]+)\]")
+	RE_EDT = re.compile("([^\[]*)\[([^\]]*)\]")
 	def _parseEdt( self, data ):
 		match = self.RE_EDT.match(data)
 		data  = data[match.end():]
@@ -848,7 +847,6 @@ class UI:
 		if not self._stack: raise SyntaxError("End called without container widget")
 		end_content, end_callback, end_ui, end_args, end_kwargs = self._pop()
 		end_callback(end_content, end_ui, *end_args, **end_kwargs)
-
 
 # ------------------------------------------------------------------------------
 #
@@ -975,7 +973,7 @@ class Console(UI):
 		curses.setupterm()
 		sys.stdout.write(curses.tigetstr('clear'))
 		if self.endMessage:
-			print self.endMessage
+			print (self.endMessage)
 		return self.endStatus
 
 	def run( self ):
