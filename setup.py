@@ -27,7 +27,7 @@ required to create console-based applications.
 
 setup(
     name         = "urwide",
-    version      = "1.0.0",
+    version      = "0.2.1",
     author       = "Sebastien Pierre", author_email = "sebastien.pierre@gmail.com",
     description   = SUMMARY, long_description  = DESCRIPTION,
     license      = "Revised BSD License",

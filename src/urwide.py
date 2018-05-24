@@ -14,7 +14,7 @@ import sys, string, re, curses
 import urwid, urwid.raw_display, urwid.curses_display
 from   urwid.widget import FLOW, FIXED, PACK, BOX, GIVEN, WEIGHT, LEFT, RIGHT, RELATIVE, TOP, BOTTOM, CLIP, RELATIVE_100
 
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 __doc__ = """\
 URWIDE provides a nice wrapper around the awesome URWID Python library. It
 enables the creation of complex console user-interfaces, using an easy to use
