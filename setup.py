@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # encoding: utf8
 # -----------------------------------------------------------------------------
-# Project   : Mercurial-Easy
+# Project   : URWIDE
 # -----------------------------------------------------------------------------
 # Author    : Sebastien Pierre                               <sebastien@ivy.fr>
 # License   : Revised BSD License
@@ -34,7 +34,6 @@ setup(
     keywords     = "tool, interface, gui, command-line",
     url          = "https://github.com/sebastien/urwide",
     package_dir  = { "": "src" },
-    modules_dir  = { "": "src" },
     py_modules   = ["urwide"],
 )
 
