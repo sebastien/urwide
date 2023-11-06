@@ -70,46 +70,8 @@ LEFT = "left"
 CENTER = "center"
 
 
-IS_PYTHON3 = sys.version_info[0] > 2
-
-if IS_PYTHON3:
-    # Python3 only defines str
-    unicode = str
-    long = int
-else:
-    unicode = unicode
-
-
-def isString(t):
-    return isinstance(t, unicode) or isinstance(t, str)
-
-
-def ensureString(t, encoding="utf8"):
-    if IS_PYTHON3:
-        return t if isinstance(t, str) else str(t, encoding)
-    else:
-        return t.encode("utf8") if isinstance(t, unicode) else str(t)
-
-
-def safeEnsureString(t, encoding="utf8"):
-    if IS_PYTHON3:
-        return ensureString(t, encoding)
-    else:
-        return t.encode("utf8", "ignore") if isinstance(t, unicode) else str(t)
-
-
-def ensureUnicode(t, encoding="utf8"):
-    if IS_PYTHON3:
-        return t if isinstance(t, str) else str(t, encoding)
-    else:
-        return t if isinstance(t, unicode) else str(t).decode(encoding)
-
-
-def ensureBytes(t, encoding="utf8"):
-    if IS_PYTHON3:
-        return t if isinstance(t, bytes) else bytes(t, encoding)
-    else:
-        return t
+def ensureString(t, encoding="utf8") -> str:
+    return t if isinstance(t, str) else str(t, encoding)
 
 
 def add_widget(container, widget, options=None):
@@ -121,7 +83,7 @@ def add_widget(container, widget, options=None):
             container.contents.append((w, (WEIGHT, 1)))
         elif w[0] in (FLOW, PACK):
             f, w = w
-            containe.contents.append((w, (PACK, None)))
+            container.contents.append((w, (PACK, None)))
         elif len(w) == 2:
             height, w = w
             container.contents.append((w, (GIVEN, height)))
@@ -132,7 +94,7 @@ def add_widget(container, widget, options=None):
             f, height, w = w
             container.contents.append((w, (f, height)))
         else:
-            raise ValueError("Widget not as expected: {0}".format(widet))
+            raise ValueError("Widget not as expected: {0}".format(widget))
     else:
         container.contents.append(widget)
 
@@ -183,7 +145,7 @@ class PatchedListBox(urwid.ListBox):
     _parent = None
 
     def __init__(self, *args, **kwargs):
-        PatchedListBox._parent.__init__(self, *args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def remove_widgets(self):
         """Remove all widgets from the body."""
@@ -201,13 +163,10 @@ class PatchedListBox(urwid.ListBox):
 
 
 class PatchedPile(urwid.Pile):
-
-    _parent = None
-
     def __init__(self, widget_list, focus_item=None):
         # No need to call the constructor
         # super(PatchedPile, self).__init__(widget_list, focus_item)
-        self.__super.__init__(widget_list, focus_item)
+        urwid.Pile.__init__(self, widget_list, focus_item)
         self.widget_list = []
         self.item_types = []
         for _ in widget_list:
@@ -248,8 +207,6 @@ class PatchedPile(urwid.Pile):
 
 
 class PatchedColumns(urwid.Columns):
-    _parent = None
-
     def set_focus(self, widget):
         """Set the column in focus with a widget in self.widget_list."""
         if type(widget) != int:
@@ -259,9 +216,7 @@ class PatchedColumns(urwid.Columns):
         self.focus_col = position
 
 
-PatchedPile._parent = urwid.Pile
-PatchedListBox._parent = urwid.ListBox
-PatchedColumns._parent = urwid.Columns
+# TODO: Why is this there?
 # urwid.Pile    = PatchedPile
 # urwid.ListBox = PatchedListBox
 # urwid.Columns = PatchedColumns
@@ -418,7 +373,7 @@ class UI:
     def _handle(self, event_name, widget, *args, **kwargs):
         """Handle the given given event name."""
         # If the event is an event name, we use the handler mechanism
-        if type(event_name) in (str, unicode):
+        if type(event_name) in (str,):
             handler = self.handler()
             if handler.responds(event_name):
                 return handler.respond(event_name, widget, *args, **kwargs)
@@ -658,7 +613,7 @@ class UI:
             raise UISyntaxError("Unrecognized widget: `" + name + "`")
 
     def _parseAttributes(self, data):
-        assert type(data) in (str, unicode)
+        assert type(data) in (str,)
         ui_attrs, data = self._parseUIAttributes(data)
         args, kwargs = self._parseArguments(data)
         return ui_attrs, args, kwargs
@@ -669,14 +624,14 @@ class UI:
         """Parses the given UI attributes from the data and returns the rest of
         the data (which corresponds to something else thatn the UI
         attributes."""
-        assert type(data) in (str, unicode)
+        assert type(data) in (str,)
         ui = {"events": {}}
         while True:
             match = self.RE_UI_ATTRIBUTE.match(data)
             if not match:
                 break
             ui_type, ui_value = match.groups()
-            assert type(ui_value) in (str, unicode)
+            assert type(ui_value) in (str,)
             if ui_type == "#":
                 ui["id"] = ui_value
             elif ui_type == "@":
@@ -693,7 +648,7 @@ class UI:
     def _parseArguments(self, data):
         """Parses the given text data which should be a list of attributes. This
         returns a dict with the attributes."""
-        assert type(data) in (str, unicode)
+        assert type(data) in (str,)
 
         def as_dict(*args, **kwargs):
             return args, kwargs
@@ -1016,21 +971,21 @@ class Console(UI):
         if text == -1:
             return self._tooltiptext
         else:
-            self._tooltiptext = ensureUnicode(text)
+            self._tooltiptext = ensureString(text)
 
     def info(self, text=-1):
         """Sets/Gets the current info text."""
         if text == -1:
             return self._infotext
         else:
-            self._infotext = ensureUnicode(text)
+            self._infotext = ensureString(text)
 
     def footer(self, text=-1):
         """Sets/Gets the current footer text."""
         if text == -1:
             return self._footertext
         else:
-            self._footertext = ensureUnicode(text)
+            self._footertext = ensureString(text)
 
     def dialog(self, dialog):
         """Sets the dialog as this UI dialog. All events will be forwarded to
@@ -1237,6 +1192,10 @@ class Console(UI):
 # ------------------------------------------------------------------------------
 
 
+def idem(_):
+    return _
+
+
 class Dialog(UI):
     """Utility class to create dialogs that will fit within a console
     application.
@@ -1250,26 +1209,32 @@ class Dialog(UI):
 	"""
 
     def __init__(
-        self, parent, ui, width=40, height=-1, style="dialog", header="", palette=""
+        self,
+        parent,
+        ui,
+        width: int = 40,
+        height: int = -1,
+        style: str = "dialog",
+        header: str = "",
+        palette: str = "",
     ):
         """Creates a new dialog that will be attached to the given 'parent'. The
         user interface is described by the 'ui' string. The dialog 'width' and
         'height' will indicate the dialog size, when 'height' is '-1', it will
         be automatically computed from the given 'ui'."""
         UI.__init__(self)
-        if height == -1:
-            height = ui.count("\n") + 1
         self._width = width
-        self._height = height
+        self._height = ui.count("\n") + 1 if height == -1 else height
         self._style = style
         self._view = None
         self._headertext = header
         self._parent = parent
-        self._startCallback = lambda x: x
-        self._endCallback = lambda x: x
+        self._startCallback = idem
+        self._endCallback = idem
         self._palette = None
         self.make(ui, palette)
 
+    # TODO: Shouldn't these be properties
     def width(self):
         """Returns the dialog width"""
         return self._width
@@ -1372,7 +1337,7 @@ class Dialog(UI):
 FORWARD = False
 
 
-class Handler(object):
+class Handler:
     """A handler can be subclassed an can be plugged into a UI to react to a
     specific set of events. The interest of handlers is that they can be
     dynamically switched, then making "modal UI" implementation easier.
@@ -1392,18 +1357,19 @@ class Handler(object):
 
     def responds(self, event):
         """Tells if the handler responds to the given event."""
-        _event_name = "on" + event[0].upper() + event[1:]
-        if hasattr(self, _event_name):
-            return _event_name
+        name = "on" + event[0].upper() + event[1:]
+        if hasattr(self, name):
+            return name
         else:
             return None
 
     def responder(self, event):
         """Returns the function that responds to the given event."""
-        _event_name = "on" + event[0].upper() + event[1:]
-        if hasattr(self, _event_name):
-            res = getattr(self, _event_name)
-            assert res
+        name = "on" + event[0].upper() + event[1:]
+        if hasattr(self, name):
+            res = getattr(self, name)
+            if not res:
+                raise UIRuntimeError(f"Event handler assigned to None: {name}")
             return res
         else:
             raise UIRuntimeError("Event not implemented: " + event)
