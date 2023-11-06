@@ -19,10 +19,12 @@ End
 
 # Event handler
 class Handler(urwide.Handler):
-	def onHello( self, button ):
-		self.ui.widgets.txt_hello.set_text("You said hello !")
-	def onBye( self, button ):
-		self.ui.end("bye !")
+    def onHello(self, button):
+        self.ui.widgets.txt_hello.set_text("You said hello !")
+
+    def onBye(self, button):
+        self.ui.end("bye !")
+
 
 urwide.Console().create(CONSOLE_STYLE, CONSOLE_UI, Handler()).main()
 

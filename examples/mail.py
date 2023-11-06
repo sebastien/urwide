@@ -1,4 +1,4 @@
-import urwide, os, sys
+import urwide, sys
 
 # Defines the style and user interface
 CONSOLE_STYLE = """
@@ -37,38 +37,40 @@ Btn [Cancel]                        #btn_cancel &press=cancel
 Btn [Save]                          #btn_save   &press=save
 Btn [Send]                          #btn_commit &press=send
 End
-""" % ("me")
+""" % (
+    "me"
+)
 
 
 # Event handler
 class Handler(urwide.Handler):
+    def onSave(self, button):
+        self.ui.info("Saving")
 
-	def onSave( self, button ):
-		self.ui.info("Saving")
+    def onCancel(self, button):
+        self.ui.info("Cancel")
+        self.exit()
 
-	def onCancel( self, button ):
-		self.ui.info("Cancel")
-		self.exit()
+    def onSend(self, button):
+        self.ui.info("Send")
 
-	def onSend( self, button ):
-		self.ui.info("Send")
+    def onChangeContent(self, widget, oldtext, newtext):
+        if oldtext != newtext:
+            self.ui.info("Email content changed !")
 
-	def onChangeContent( self, widget, oldtext, newtext ):
-		if oldtext != newtext:
-			self.ui.info("Email content changed !")
+    def exit(self):
+        sys.exit()
 
-	def exit( self ):
-		sys.exit()
 
 # Defines strings referenced in the UI
-ui                 = urwide.Console()
-ui.strings.FROM    = "Your email address"
-ui.strings.TO      = "Comma separated list of recipient adresses"
+ui = urwide.Console()
+ui.strings.FROM = "Your email address"
+ui.strings.TO = "Comma separated list of recipient adresses"
 ui.strings.SUBJECT = "The subject for your email"
 ui.create(CONSOLE_STYLE, CONSOLE_UI, Handler())
 
 # Main
 if __name__ == "__main__":
-	ui.main()
+    ui.main()
 
 # EOF

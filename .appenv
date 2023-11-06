@@ -1,0 +1,2 @@
+appenv_declare urwide
+appenv_prepend PYTHONPATH $APPENV_DIR/src/py
