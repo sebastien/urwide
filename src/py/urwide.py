@@ -41,6 +41,10 @@ every URWID widget.
 URWID can be downloaded at <http://www.excess.org/urwid>.
 """
 
+RE_COLOR = re.compile(
+    "^#[A-Fa-f0-9][A-Fa-f0-9][A-Fa-f0-9][A-Fa-f0-9][A-Fa-f0-9][A-Fa-f0-9]$"
+)
+
 COLORS = {
     # Colors
     "WH": "white",
@@ -240,7 +244,7 @@ class UI:
     """The UI class allows to build an URWID user-interface from a simple set of
     string definitions.
 
-    Instanciation of this class, may raise syntax error if the given text data
+    Instantiation of this class, may raise syntax error if the given text data
     is not formatted as expected, but you can easily get detailed information on
     what the problem was."""
 
@@ -302,7 +306,7 @@ class UI:
             return None
 
     def new(self, widgetClass, *args, **kwargs):
-        """Creates the given widget by instanciating @widgetClass with the given
+        """Creates the given widget by instantiating @widgetClass with the given
         args and kwargs. Basically, this is equivalent to
 
         >	return widgetClass(*kwargs['args'], **kwargs['kwargs'])
@@ -318,7 +322,7 @@ class UI:
            constructor.
 
         In all cases, if you want to pass args and kwargs, you should
-        explicitely use the `args` and `kwargs` arguments. I know that this is a
+        explicitly use the `args` and `kwargs` arguments. I know that this is a
         bit confusing..."""
         return self._createWidget(widgetClass, *args, **kwargs)
 
@@ -343,7 +347,7 @@ class UI:
         This modifies the 'handler.ui' and sets it to this ui."""
         if handler == None:
             if not self._handlers:
-                raise UIRuntimeError("No handler defined for: %s" % (self))
+                raise UIRuntimeError("No handler defined for: {self}")
             return self._handlers[-1][0]
         else:
             old_ui = handler.ui
@@ -559,7 +563,10 @@ class UI:
 
     def parseUI(self, text):
         """Parses the given text and initializes this user interface object."""
-        text = string.Template(text).substitute(self._strings)
+        try:
+            text = string.Template(text).substitute(self._strings)
+        except KeyError as e:
+            raise RuntimeError(f"Missing string template value: {e}")
         self._content = []
         self._stack = []
         self._currentLine = 0
@@ -582,17 +589,21 @@ class UI:
             res_line = [name]
             for attribute in attributes.split(","):
                 attribute = attribute.strip()
-                color = COLORS.get(attribute)
-                if not color:
+                if RE_COLOR.match(attribute):
+                    color = attribute
+                elif attribute in COLORS:
+                    color = COLORS.get(attribute)
+                else:
                     raise UISyntaxError("Unsupported color: " + attribute)
                 res_line.append(color)
             if not len(res_line) == 4:
                 raise UISyntaxError("Expected NAME: FOREGROUND BACKGROUND FONT")
             res.append(tuple(res_line))
+        print("STYLE", res)
         self._palette = res
         return res
 
-    RE_LINE = re.compile("^\s*(...)\s?")
+    RE_LINE = re.compile(r"^\s*(...)\s?")
 
     def _parseLine(self, line):
         """Parses a line of the UI definition file. This automatically invokes
@@ -618,7 +629,7 @@ class UI:
         args, kwargs = self._parseArguments(data)
         return ui_attrs, args, kwargs
 
-    RE_UI_ATTRIBUTE = re.compile("\s*([#@\?\:]|\&[\w]+\=)([\w\d_\-]+)\s*")
+    RE_UI_ATTRIBUTE = re.compile(r"\s*([#@\?\:]|\&[\w]+\=)([\w\d_\-]+)\s*")
 
     def _parseUIAttributes(self, data):
         """Parses the given UI attributes from the data and returns the rest of
@@ -690,7 +701,7 @@ class UI:
             return widget
 
     def _createWidget(self, widgetClass, *args, **kwargs):
-        """Creates the given widget by instanciating @widgetClass with the given
+        """Creates the given widget by instantiating @widgetClass with the given
         args and kwargs. Basically, this is equivalent to
 
         >	return widgetClass(*kwargs['args'], **kwargs['kwargs'])
@@ -706,7 +717,7 @@ class UI:
            constructor.
 
         In all cases, if you want to pass args and kwargs, you should
-        explicitely use the `args` and `kwargs` arguments. I know that this is a
+        explicitly use the `args` and `kwargs` arguments. I know that this is a
         bit confusing..."""
         _data = _ui = _args = _kwargs = None
         for arg, value in kwargs.items():
@@ -794,7 +805,7 @@ class UI:
             urwid.Text, data, ui=ui, args=args, kwargs=kwargs
         )
 
-    RE_BTN = re.compile("\s*\[([^\]]+)\]")
+    RE_BTN = re.compile(r"\s*\[([^\]]+)\]")
 
     def _parseBtn(self, data):
         match = self.RE_BTN.match(data)
@@ -805,7 +816,7 @@ class UI:
             self._createWidget(urwid.Button, match.group(1), self._doPress, data=data)
         )
 
-    RE_CHC = re.compile("\s*\[([xX ])\:(\w+)\](.+)")
+    RE_CHC = re.compile(r"\s*\[([xX ])\:(\w+)\](.+)")
 
     def _parseChc(self, data):
         attr, data = self._argsFind(data)
@@ -861,7 +872,7 @@ class UI:
         ui, args, kwargs = self._parseAttributes(data)
         self._push(end, ui=ui, args=args, kwargs=kwargs)
 
-    RE_EDT = re.compile("([^\[]*)\[([^\]]*)\]")
+    RE_EDT = re.compile(r"([^\[]*)\[([^\]]*)\]")
 
     def _parseEdt(self, data):
         match = self.RE_EDT.match(data)
@@ -929,7 +940,7 @@ class UI:
     def _parseEnd(self, data):
         if data.strip():
             raise UISyntaxError("End takes no argument: " + repr(data))
-        # We get the end callback that will instanciate the widget and add it to
+        # We get the end callback that will instantiate the widget and add it to
         # the content.
         if not self._stack:
             raise SyntaxError("End called without container widget")
@@ -1373,6 +1384,30 @@ class Handler:
             return res
         else:
             raise UIRuntimeError("Event not implemented: " + event)
+
+
+# -----------------------------------------------------------------------------
+#
+# HIGH LEVEL API
+#
+# -----------------------------------------------------------------------------
+
+
+class TUIApplication:
+    def __init__(self, app: Console, handler: Handler):
+        self.app: Console = app
+        self.handler: Handler = handler
+
+    def run(self):
+        return self.app.main()
+
+
+def ui(ui: str, style: str = "", **strings: str) -> TUIApplication:
+    app = Console()
+    for k, v in strings.items():
+        setattr(app.strings, k, v)
+    handler = Handler()
+    return TUIApplication(app.create(style, ui, handler), handler)
 
 
 # EOF
